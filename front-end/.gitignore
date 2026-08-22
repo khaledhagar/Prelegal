@@ -41,4 +41,4 @@ yarn-error.log*
 next-env.d.ts
 
 # Generated from the repository templates/ directory by scripts/build-template.mjs
-src/generated/
+src/generated/mnda-template.ts
