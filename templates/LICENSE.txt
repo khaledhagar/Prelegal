@@ -1,0 +1,45 @@
+LICENSE NOTICE FOR THE templates/ DIRECTORY
+===========================================
+
+Every markdown file in this directory is a legal agreement template
+produced and published by Common Paper (https://commonpaper.com/), and
+is licensed under the Creative Commons Attribution 4.0 International
+License (CC BY 4.0).
+
+    Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+    Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+
+Source
+------
+These files were retrieved from the Common Paper GitHub organization:
+
+    https://github.com/CommonPaper
+
+See catalog.json in the project root for the source repository of each
+individual file.
+
+What CC BY 4.0 permits
+----------------------
+You are free to share (copy and redistribute in any medium or format)
+and adapt (remix, transform, and build upon the material) for any
+purpose, including commercially, provided that you comply with the
+license terms.
+
+Attribution requirement
+-----------------------
+You must give appropriate credit to Common Paper, provide a link to the
+license, and indicate if changes were made. You may do so in any
+reasonable manner, but not in any way that suggests Common Paper
+endorses you or your use.
+
+IMPORTANT: Prelegal modifies these templates on behalf of users. Any
+document generated from a template in this directory is a derivative
+work, and the attribution requirement above continues to apply to it.
+Downstream output must therefore carry a Common Paper credit and a link
+to the CC BY 4.0 license.
+
+No legal advice
+---------------
+These templates are provided as-is. Neither Common Paper nor this
+project provides legal advice, and use of these templates does not
+create an attorney-client relationship.
