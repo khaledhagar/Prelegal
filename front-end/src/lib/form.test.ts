@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { filledFormValues as complete } from "./fixtures";
 import {
   DEFAULT_PURPOSE,
   defaultFormValues,
@@ -7,29 +8,7 @@ import {
   missingRequiredFields,
   suggestedFileName,
   today,
-  type NdaFormValues,
 } from "./form";
-
-function complete(overrides: Partial<NdaFormValues> = {}): NdaFormValues {
-  return {
-    ...defaultFormValues(),
-    governingLaw: "Delaware",
-    jurisdiction: "New Castle, DE",
-    partyOne: {
-      printName: "Jordan Lee",
-      title: "CEO",
-      company: "Acme, Inc.",
-      noticeAddress: "legal@acme.com",
-    },
-    partyTwo: {
-      printName: "Sam Rivera",
-      title: "GC",
-      company: "Globex Corporation",
-      noticeAddress: "notices@globex.com",
-    },
-    ...overrides,
-  };
-}
 
 afterEach(() => {
   vi.useRealTimers();

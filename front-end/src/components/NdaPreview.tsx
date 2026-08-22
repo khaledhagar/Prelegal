@@ -2,11 +2,12 @@
  * Renders the shared document model to HTML.
  *
  * The PDF renderer in src/pdf/NdaDocument.tsx walks the same model, so the two
- * outputs stay in step. When you add a block kind, both renderers must handle it
- * -- the switch statements are exhaustive over Block["kind"] so TypeScript will
- * point at whichever one you forgot.
+ * outputs stay in step. When you add a block kind, both renderers must handle
+ * it: the assertNever call in each switch's default branch fails to compile
+ * until you do. That guard is load-bearing -- without it a missing case just
+ * returns undefined, which React accepts, and the content vanishes silently.
  */
-import type { Block, Inline, NdaDocument } from "@/lib/document";
+import { assertNever, type Block, type Inline, type NdaDocument } from "@/lib/document";
 
 function InlineRuns({ content }: { content: Inline[] }) {
   return (
@@ -161,6 +162,11 @@ function BlockView({ block }: { block: Block }) {
           <InlineRuns content={block.content} />
         </p>
       );
+
+    default:
+      // Forces this switch to stay exhaustive. Without it an unhandled kind
+      // would return undefined -- a legal ReactNode -- and silently disappear.
+      return assertNever(block);
   }
 }
 

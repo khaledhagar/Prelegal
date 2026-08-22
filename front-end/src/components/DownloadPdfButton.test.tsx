@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { DownloadPdfButton } from "./DownloadPdfButton";
 import { assembleDocument } from "@/lib/assemble";
 import { defaultFormValues, type NdaFormValues } from "@/lib/form";
+import { filledFormValues as complete } from "@/lib/fixtures";
 
 // The real renderer is exercised in src/pdf/NdaDocument.test.tsx. Here we care
 // about the button's own behaviour: wiring, filename, errors, disabled state.
@@ -14,27 +15,6 @@ vi.mock("@react-pdf/renderer", () => ({
 vi.mock("@/pdf/NdaDocument", () => ({
   NdaPdfDocument: () => null,
 }));
-
-function complete(overrides: Partial<NdaFormValues> = {}): NdaFormValues {
-  return {
-    ...defaultFormValues(),
-    governingLaw: "Delaware",
-    jurisdiction: "New Castle, DE",
-    partyOne: {
-      printName: "Jordan Lee",
-      title: "CEO",
-      company: "Acme, Inc.",
-      noticeAddress: "legal@acme.com",
-    },
-    partyTwo: {
-      printName: "Sam Rivera",
-      title: "GC",
-      company: "Globex Corporation",
-      noticeAddress: "notices@globex.com",
-    },
-    ...overrides,
-  };
-}
 
 function setup(values: NdaFormValues) {
   return render(

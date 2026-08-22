@@ -45,9 +45,15 @@ src/generated/mnda-template.ts       (generated, git-ignored)
 ```
 
 **One model, two renderers.** The preview and the PDF walk the same document
-model, so what you see on screen is what lands in the file. Both `switch`
-statements are exhaustive over `Block["kind"]`, so adding a block type produces
-a type error in whichever renderer you forget to update.
+model, so what you see on screen is what lands in the file. Each renderer's
+`switch` ends in `assertNever(block)`, so adding a block kind produces a
+compile error in whichever renderer you forget to update.
+
+That guard is doing real work. TypeScript alone does *not* catch a missing
+case here: a component that falls off the end of a switch returns `undefined`,
+which is a valid `ReactNode`, so the block would be dropped from the document
+with no error anywhere. Verified by adding an unhandled variant and confirming
+`tsc --noEmit` now reports an error in both renderers.
 
 ### Notable decisions
 

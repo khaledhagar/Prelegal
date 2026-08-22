@@ -7,7 +7,13 @@
  * bracketed placeholders and empty signature table exist to be replaced. The
  * headings, wording, and ordering below deliberately mirror it.
  */
-import type { Block, Inline, NdaDocument, SignatureRow } from "./document";
+import {
+  splitParagraphs,
+  type Block,
+  type Inline,
+  type NdaDocument,
+  type SignatureRow,
+} from "./document";
 import { parseStandardTerms } from "./markdown";
 import {
   type NdaFormValues,
@@ -22,6 +28,24 @@ function value(text: string, placeholder: string): Inline {
   return trimmed.length > 0
     ? { kind: "value", text: trimmed, filled: true }
     : { kind: "value", text: placeholder, filled: false };
+}
+
+/**
+ * Turns multi-line textarea input into one paragraph per line.
+ *
+ * A single block would lose the line breaks entirely: HTML collapses whitespace
+ * and @react-pdf/renderer ignores newlines inside a Text node, so a numbered
+ * list of modifications would render as one run-on sentence in both outputs.
+ */
+function freeTextBlocks(text: string, placeholder: string): Block[] {
+  const lines = splitParagraphs(text);
+  if (lines.length === 0) {
+    return [{ kind: "paragraph", content: [value("", placeholder)] }];
+  }
+  return lines.map((line) => ({
+    kind: "paragraph",
+    content: [value(line, placeholder)],
+  }));
 }
 
 /**
@@ -144,10 +168,7 @@ export function buildCoverPage(values: NdaFormValues): Block[] {
 
     { kind: "heading", text: "Purpose" },
     { kind: "label", text: "How Confidential Information may be used" },
-    {
-      kind: "paragraph",
-      content: [value(values.purpose, "[Describe the purpose]")],
-    },
+    ...freeTextBlocks(values.purpose, "[Describe the purpose]"),
 
     { kind: "heading", text: "Effective Date" },
     {
@@ -183,7 +204,10 @@ export function buildCoverPage(values: NdaFormValues): Block[] {
   if (modifications.length > 0) {
     blocks.push(
       { kind: "heading", text: "MNDA Modifications" },
-      { kind: "paragraph", content: [{ kind: "text", text: modifications }] },
+      ...splitParagraphs(modifications).map<Block>((line) => ({
+        kind: "paragraph",
+        content: [{ kind: "text", text: line }],
+      })),
     );
   }
 

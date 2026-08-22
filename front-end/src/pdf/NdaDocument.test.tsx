@@ -12,28 +12,7 @@ import zlib from "node:zlib";
 import { NdaPdfDocument } from "./NdaDocument";
 import { assembleDocument } from "@/lib/assemble";
 import { defaultFormValues, type NdaFormValues } from "@/lib/form";
-
-function filled(overrides: Partial<NdaFormValues> = {}): NdaFormValues {
-  return {
-    ...defaultFormValues(),
-    effectiveDate: "2026-03-08",
-    governingLaw: "Delaware",
-    jurisdiction: "courts located in New Castle, DE",
-    partyOne: {
-      printName: "Jordan Lee",
-      title: "Chief Executive Officer",
-      company: "Acme, Inc.",
-      noticeAddress: "legal@acme.com",
-    },
-    partyTwo: {
-      printName: "Sam Rivera",
-      title: "General Counsel",
-      company: "Globex Corporation",
-      noticeAddress: "notices@globex.com",
-    },
-    ...overrides,
-  };
-}
+import { filledFormValues as filled } from "@/lib/fixtures";
 
 function render(values: NdaFormValues) {
   return renderToBuffer(<NdaPdfDocument document={assembleDocument(values)} />);

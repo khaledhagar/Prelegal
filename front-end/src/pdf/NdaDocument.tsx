@@ -13,7 +13,12 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import type { Block, Inline, NdaDocument as Model } from "@/lib/document";
+import {
+  assertNever,
+  type Block,
+  type Inline,
+  type NdaDocument as Model,
+} from "@/lib/document";
 
 const COLORS = {
   ink: "#0f172a",
@@ -212,6 +217,9 @@ function BlockView({ block }: { block: Block }) {
       return <SignatureTable block={block} />;
     case "footnote":
       return <Text style={styles.footnote}>{runs(block.content)}</Text>;
+    default:
+      // Keeps this switch exhaustive; see assertNever in src/lib/document.ts.
+      return assertNever(block);
   }
 }
 

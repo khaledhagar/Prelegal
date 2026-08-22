@@ -1,30 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { assembleDocument, buildCoverPage } from "./assemble";
-import { defaultFormValues, type NdaFormValues } from "./form";
+import { defaultFormValues } from "./form";
 import { inlineToPlainText, type Block } from "./document";
-
-/** Fully-populated values, so tests can vary one field at a time. */
-function filled(overrides: Partial<NdaFormValues> = {}): NdaFormValues {
-  return {
-    ...defaultFormValues(),
-    effectiveDate: "2026-03-08",
-    governingLaw: "Delaware",
-    jurisdiction: "courts located in New Castle, DE",
-    partyOne: {
-      printName: "Jordan Lee",
-      title: "Chief Executive Officer",
-      company: "Acme, Inc.",
-      noticeAddress: "legal@acme.com",
-    },
-    partyTwo: {
-      printName: "Sam Rivera",
-      title: "General Counsel",
-      company: "Globex Corporation",
-      noticeAddress: "notices@globex.com",
-    },
-    ...overrides,
-  };
-}
+import { filledFormValues as filled } from "./fixtures";
 
 /** All rendered text of a block list, for substring assertions. */
 function textOf(blocks: Block[]): string {

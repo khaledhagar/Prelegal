@@ -12,6 +12,7 @@
     "lint": "eslint",
     "pretest": "npm run build:template",
     "test": "vitest run",
+    "pretest:watch": "npm run build:template",
     "test:watch": "vitest"
   },
   "dependencies": {
