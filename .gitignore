@@ -1,0 +1,97 @@
+# ---------- Python / FastAPI (backend) ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Test & type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# Local databases & migrations output
+*.db
+*.sqlite
+*.sqlite3
+
+# ---------- Next.js / Node (frontend) ----------
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# Production build
+/build
+
+# Bundler / tooling caches
+.turbo/
+.swc/
+.eslintcache
+.parcel-cache/
+
+# Test coverage
+/coverage
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Deployment
+.vercel/
+
+# ---------- Environment & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# ---------- Editors & OS ----------
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Claude Code ----------
+# Personal, per-developer overrides (project settings.json IS tracked)
+.claude/settings.local.json
