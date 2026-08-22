@@ -32,7 +32,14 @@ export default function Home() {
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
         <div className="space-y-5">
           <NdaForm values={values} onChange={setValues} />
-          <div className="lg:sticky lg:bottom-6">
+          {/*
+            Sticky action bar. `bottom` positioning lifts this out of its
+            natural place at the end of the column, so it floats over whatever
+            form field is at the bottom of the viewport -- it needs an opaque
+            background and a border to read as a deliberate toolbar rather than
+            as text bleeding through.
+          */}
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:bottom-4 lg:z-10">
             <DownloadPdfButton document={document} values={values} />
           </div>
         </div>
