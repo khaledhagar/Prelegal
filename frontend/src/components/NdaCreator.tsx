@@ -1,26 +1,28 @@
 "use client";
 
 /**
- * The Mutual NDA creator: cover-page form on the left, live agreement on the
- * right, PDF download in between.
+ * The Mutual NDA creator: a conversation with the drafting assistant on the
+ * left, the agreement it is building on the right, PDF download beneath.
  *
- * This was the whole application before PL-4; it is now one tool hosted inside
- * the signed-in shell, which owns the product header and background. Its
- * behaviour is unchanged.
+ * The chat replaced a cover-page form in PL-5. Everything downstream of the
+ * values is untouched -- `assembleDocument` still turns them into one document
+ * model, and the preview and the PDF still render from it -- so the assistant
+ * simply became a second way to produce the same values.
  */
 
 import { useMemo, useState } from "react";
-import { NdaForm } from "@/components/NdaForm";
+import { NdaChat } from "@/components/NdaChat";
 import { NdaPreview } from "@/components/NdaPreview";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { assembleDocument } from "@/lib/assemble";
-import { defaultFormValues } from "@/lib/form";
+import { emptyFormValues } from "@/lib/form";
 
 export function NdaCreator() {
-  const [values, setValues] = useState(defaultFormValues);
+  const [values, setValues] = useState(emptyFormValues);
 
-  // Reassembled on each keystroke. The document is a few dozen small objects,
-  // so this is cheap and keeps the preview exactly in step with the form.
+  // Reassembled whenever the assistant reports new values. The document is a
+  // few dozen small objects, so this is cheap and keeps the preview exactly in
+  // step with the conversation.
   const document = useMemo(() => assembleDocument(values), [values]);
 
   return (
@@ -31,24 +33,17 @@ export function NdaCreator() {
             Mutual NDA creator
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            Fill in the cover page and download a complete Mutual
-            Non-Disclosure Agreement. Everything stays in your browser — nothing
-            is uploaded.
+            Answer the assistant&apos;s questions and watch your Mutual
+            Non-Disclosure Agreement fill in, then download it as a PDF.
+            Everything stays in your browser — nothing is uploaded.
           </p>
         </div>
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <NdaForm values={values} onChange={setValues} />
-          {/*
-            Sticky action bar. `bottom` positioning lifts this out of its
-            natural place at the end of the column, so it floats over whatever
-            form field is at the bottom of the viewport -- it needs an opaque
-            background and a border to read as a deliberate toolbar rather than
-            as text bleeding through.
-          */}
-          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900 lg:sticky lg:bottom-4 lg:z-10">
+        <div className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+          <NdaChat values={values} onValuesChange={setValues} />
+          <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900">
             <DownloadPdfButton document={document} values={values} />
           </div>
         </div>

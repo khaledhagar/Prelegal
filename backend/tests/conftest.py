@@ -34,7 +34,15 @@ def static_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def client(database_path: Path, static_dir: Path) -> Iterator[TestClient]:
     """The whole app: API, database and frontend, as it is actually deployed."""
-    app = create_app(Settings(database_path=database_path, static_dir=static_dir))
+    app = create_app(
+        Settings(
+            database_path=database_path,
+            static_dir=static_dir,
+            # Present so /api/chat is reachable. No test makes a real call --
+            # `tests/test_chat_api.py` replaces the LLM.
+            openrouter_api_key="test-key",
+        )
+    )
     # Entering the context manager runs the lifespan, which builds the database.
     with TestClient(app) as test_client:
         yield test_client
@@ -44,7 +52,25 @@ def client(database_path: Path, static_dir: Path) -> Iterator[TestClient]:
 def api_only_client(database_path: Path, tmp_path: Path) -> Iterator[TestClient]:
     """The app as it runs during backend-only work, with no frontend built."""
     app = create_app(
-        Settings(database_path=database_path, static_dir=tmp_path / "never-built")
+        Settings(
+            database_path=database_path,
+            static_dir=tmp_path / "never-built",
+            openrouter_api_key="test-key",
+        )
+    )
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def unconfigured_client(database_path: Path, static_dir: Path) -> Iterator[TestClient]:
+    """The app with no OPENROUTER_API_KEY -- everything but chat still works."""
+    app = create_app(
+        Settings(
+            database_path=database_path,
+            static_dir=static_dir,
+            openrouter_api_key=None,
+        )
     )
     with TestClient(app) as test_client:
         yield test_client

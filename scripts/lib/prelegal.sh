@@ -67,10 +67,24 @@ start() {
     # so there is nothing here worth preserving between runs.
     docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
+    # The image deliberately ships without credentials, so the assistant's key
+    # is handed over at run time. `--env NAME` passes it from this environment
+    # by name: the value never appears in the process list.
+    if [ -f "$REPO_ROOT/.env" ]; then
+        set -- --env-file "$REPO_ROOT/.env"
+    elif [ -n "${OPENROUTER_API_KEY:-}" ]; then
+        set -- --env OPENROUTER_API_KEY
+    else
+        set --
+        echo "warning: no .env and no OPENROUTER_API_KEY -- the AI chat will be" >&2
+        echo "         unavailable. Everything else works." >&2
+    fi
+
     echo "Starting $CONTAINER_NAME on port $PORT ..."
     docker run --detach \
         --name "$CONTAINER_NAME" \
         --publish "$PORT:8000" \
+        "$@" \
         "$IMAGE_NAME" >/dev/null
 
     if wait_until_ready; then

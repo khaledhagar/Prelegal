@@ -12,6 +12,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_ROOT.parent
 
@@ -29,9 +31,20 @@ class Settings:
     static_dir: Path
     """The frontend's `next build` output. Absent during backend-only work."""
 
+    openrouter_api_key: str | None
+    """
+    Credentials for the chat assistant. Absent is a supported state: the rest of
+    the app works and /api/chat says plainly that it is not configured, which
+    beats a container that refuses to start.
+    """
+
     @property
     def serves_frontend(self) -> bool:
         return self.static_dir.is_dir()
+
+    @property
+    def chat_enabled(self) -> bool:
+        return bool(self.openrouter_api_key)
 
 
 def _path_from_env(name: str, default: Path) -> Path:
@@ -40,7 +53,13 @@ def _path_from_env(name: str, default: Path) -> Path:
 
 
 def load_settings() -> Settings:
+    # Convenience for `uv run uvicorn ...` from a checkout: the key lives in the
+    # repository's .env. Real environment variables win, which is what the
+    # container relies on -- the image deliberately ships without a .env.
+    load_dotenv(REPO_ROOT / ".env", override=False)
+
     return Settings(
         database_path=_path_from_env("PRELEGAL_DATABASE_PATH", DEFAULT_DATABASE_PATH),
         static_dir=_path_from_env("PRELEGAL_STATIC_DIR", DEFAULT_STATIC_DIR),
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY") or None,
     )

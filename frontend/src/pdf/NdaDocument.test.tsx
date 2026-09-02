@@ -11,7 +11,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import zlib from "node:zlib";
 import { NdaPdfDocument } from "./NdaDocument";
 import { assembleDocument } from "@/lib/assemble";
-import { defaultFormValues, type NdaFormValues } from "@/lib/form";
+import { emptyFormValues, type NdaFormValues } from "@/lib/form";
 import { filledFormValues as filled } from "@/lib/fixtures";
 
 function render(values: NdaFormValues) {
@@ -121,7 +121,7 @@ describe("NdaPdfDocument", () => {
   }, 30_000);
 
   it("renders an entirely blank form without throwing", async () => {
-    const pdf = await render(defaultFormValues());
+    const pdf = await render(emptyFormValues());
     expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
   }, 30_000);
 

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { NdaPreview } from "./NdaPreview";
 import type { NdaDocument } from "@/lib/document";
 import { assembleDocument } from "@/lib/assemble";
-import { defaultFormValues } from "@/lib/form";
+import { emptyFormValues } from "@/lib/form";
 
 function doc(blocks: NdaDocument["blocks"]): NdaDocument {
   return { blocks };
@@ -104,7 +104,7 @@ describe("NdaPreview", () => {
   });
 
   it("renders a full assembled document including cover page and terms", () => {
-    render(<NdaPreview document={assembleDocument(defaultFormValues())} />);
+    render(<NdaPreview document={assembleDocument(emptyFormValues())} />);
     expect(
       screen.getByRole("heading", { name: "Mutual Non-Disclosure Agreement" }),
     ).toBeInTheDocument();

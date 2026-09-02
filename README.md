@@ -18,7 +18,10 @@ first stable release. Contributions and issues are welcome in the meantime.
 
 ## Running it
 
-Docker is the only prerequisite.
+Docker is the only prerequisite. The AI chat also needs an
+`OPENROUTER_API_KEY` in a `.env` at the repository root; the start scripts pass
+it to the container at run time and it is never baked into the image. Without
+it everything works except the chat, which says so plainly.
 
 ```bash
 scripts/start-mac.sh       scripts/stop-mac.sh        # macOS
@@ -39,22 +42,25 @@ no CORS configuration to get wrong.
 ```
                     ┌──────────────── prelegal:local ────────────────┐
                     │                                                │
- localhost:8000 ───▶│  FastAPI   ──  /api/*   ──▶  routers           │
-                    │      │                        │                │
-                    │      │                        ▼                │
-                    │      │                   SQLite (rebuilt       │
-                    │      │                   from schema.sql       │
-                    │      │                   on every startup)     │
+ localhost:8000 ───▶│  FastAPI  ──  /api/chat  ─▶  LiteLLM ─────────────▶ OpenRouter
+                    │      │                        │                │    (Cerebras)
+                    │      │        /api/health ─▶  SQLite (rebuilt  │
+                    │      │                        from schema.sql  │
+                    │      │                        on every startup) │
                     │      ▼                                         │
                     │  everything else  ──▶  frontend/out            │
                     │                        (next build --export)   │
                     └────────────────────────────────────────────────┘
 ```
 
+**You fill the agreement in by talking to it.** The assistant asks what it still
+needs, and each answer updates the document on the right. The conversation lives
+in the browser and is sent whole with each turn; the backend stores none of it.
+
 | Path | What lives there |
 | --- | --- |
 | [`frontend/`](frontend) | Next.js app: sign-in, the signed-in shell, the Mutual NDA creator |
-| [`backend/`](backend) | FastAPI app: `/api`, the database, and serving the above |
+| [`backend/`](backend) | FastAPI app: `/api`, the drafting assistant, the database, and serving the above |
 | [`templates/`](templates) | Common Paper agreement text — the source of truth for document content |
 | [`scripts/`](scripts) | Start and stop, per platform |
 | `catalog.json` | The document types the product intends to support |

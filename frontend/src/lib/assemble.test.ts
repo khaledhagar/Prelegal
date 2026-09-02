@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assembleDocument, buildCoverPage } from "./assemble";
-import { defaultFormValues } from "./form";
+import { emptyFormValues } from "./form";
 import { inlineToPlainText, type Block } from "./document";
 import { filledFormValues as filled } from "./fixtures";
 
@@ -271,8 +271,8 @@ describe("assembleDocument", () => {
   });
 
   it("produces a document for entirely default (mostly blank) values", () => {
-    expect(() => assembleDocument(defaultFormValues())).not.toThrow();
-    expect(assembleDocument(defaultFormValues()).blocks.length).toBeGreaterThan(10);
+    expect(() => assembleDocument(emptyFormValues())).not.toThrow();
+    expect(assembleDocument(emptyFormValues()).blocks.length).toBeGreaterThan(10);
   });
 
   it("handles non-Latin company names without mangling them", () => {
