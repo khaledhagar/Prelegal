@@ -63,8 +63,24 @@ function Start-Prelegal {
     # so there is nothing here worth preserving between runs.
     docker rm --force $script:ContainerName *> $null
 
+    # The image deliberately ships without credentials, so the assistant's key
+    # is handed over at run time. `--env NAME` passes it from this environment
+    # by name: the value never appears in the process list.
+    $envFile = Join-Path $script:RepoRoot '.env'
+    if (Test-Path $envFile) {
+        $envArgs = @('--env-file', $envFile)
+    }
+    elseif ($env:OPENROUTER_API_KEY) {
+        $envArgs = @('--env', 'OPENROUTER_API_KEY')
+    }
+    else {
+        $envArgs = @()
+        Write-Host 'warning: no .env and no OPENROUTER_API_KEY -- the AI chat will be'
+        Write-Host '         unavailable. Everything else works.'
+    }
+
     Write-Host "Starting $script:ContainerName on port $script:Port ..."
-    docker run --detach --name $script:ContainerName --publish "$($script:Port):8000" $script:ImageName | Out-Null
+    docker run --detach --name $script:ContainerName --publish "$($script:Port):8000" @envArgs $script:ImageName | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'docker run failed.' }
 
     if (Wait-UntilReady) {

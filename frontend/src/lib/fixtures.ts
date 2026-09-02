@@ -5,15 +5,19 @@
  * Keeping one definition means a new field on NdaFormValues needs a default in
  * one place rather than in every suite that builds a populated form.
  */
-import { defaultFormValues, type NdaFormValues } from "./form";
+import { emptyFormValues, type NdaFormValues } from "./form";
 
 /** A fully-populated form, so tests can vary a single field at a time. */
 export function filledFormValues(
   overrides: Partial<NdaFormValues> = {},
 ): NdaFormValues {
   return {
-    ...defaultFormValues(),
+    ...emptyFormValues(),
+    purpose:
+      "Evaluating whether to enter into a business relationship with the other party.",
     effectiveDate: "2026-03-08",
+    mndaTermYears: "1",
+    confidentialityYears: "1",
     governingLaw: "Delaware",
     jurisdiction: "courts located in New Castle, DE",
     partyOne: {

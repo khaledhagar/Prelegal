@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DownloadPdfButton } from "./DownloadPdfButton";
 import { assembleDocument } from "@/lib/assemble";
-import { defaultFormValues, type NdaFormValues } from "@/lib/form";
+import { emptyFormValues, type NdaFormValues } from "@/lib/form";
 import { filledFormValues as complete } from "@/lib/fixtures";
 
 // The real renderer is exercised in src/pdf/NdaDocument.test.tsx. Here we care
@@ -72,7 +72,7 @@ describe("DownloadPdfButton", () => {
   });
 
   it("falls back to a generic filename when companies are blank", async () => {
-    setup(defaultFormValues());
+    setup(emptyFormValues());
     await userEvent.click(screen.getByRole("button", { name: /download pdf/i }));
     await waitFor(() => expect(clicked).toHaveLength(1));
     expect(clicked[0].download).toBe("mutual-nda.pdf");
@@ -97,7 +97,7 @@ describe("DownloadPdfButton", () => {
   });
 
   it("warns about blank required fields but still allows download", async () => {
-    setup(defaultFormValues());
+    setup(emptyFormValues());
     expect(screen.getByText(/still blank/i)).toHaveTextContent("Governing Law");
     expect(screen.getByRole("button", { name: /download pdf/i })).toBeEnabled();
   });

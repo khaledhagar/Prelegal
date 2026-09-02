@@ -35,8 +35,31 @@ def test_environment_overrides_both_paths(
 
 
 def test_serves_frontend_is_false_until_the_directory_exists(tmp_path: Path) -> None:
-    settings = Settings(database_path=tmp_path / "db", static_dir=tmp_path / "out")
+    settings = Settings(
+        database_path=tmp_path / "db",
+        static_dir=tmp_path / "out",
+        openrouter_api_key=None,
+    )
     assert not settings.serves_frontend
 
     (tmp_path / "out").mkdir()
     assert settings.serves_frontend
+
+
+def test_chat_is_enabled_only_with_a_key(tmp_path: Path) -> None:
+    def settings(key: str | None) -> Settings:
+        return Settings(
+            database_path=tmp_path / "db",
+            static_dir=tmp_path / "out",
+            openrouter_api_key=key,
+        )
+
+    assert not settings(None).chat_enabled
+    assert settings("sk-whatever").chat_enabled
+
+
+def test_a_blank_key_counts_as_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    # An empty OPENROUTER_API_KEY= line in .env would otherwise look configured
+    # and fail later, inside the provider call.
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
+    assert load_settings().openrouter_api_key is None

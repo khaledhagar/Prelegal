@@ -1,34 +1,42 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { filledFormValues as complete } from "./fixtures";
 import {
-  DEFAULT_PURPOSE,
-  defaultFormValues,
+  capturedFields,
+  emptyFormValues,
   formatEffectiveDate,
   formatYears,
   missingRequiredFields,
   suggestedFileName,
-  today,
 } from "./form";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("defaultFormValues", () => {
-  it("starts from the template's suggested purpose", () => {
-    expect(defaultFormValues().purpose).toBe(DEFAULT_PURPOSE);
+describe("emptyFormValues", () => {
+  it("pre-fills nothing the assistant has not been told", () => {
+    const values = emptyFormValues();
+    // Anything with a value here would be adopted as the user's answer to a
+    // question the assistant never asked.
+    expect(values.purpose).toBe("");
+    expect(values.effectiveDate).toBe("");
+    expect(values.governingLaw).toBe("");
+    expect(values.jurisdiction).toBe("");
+    expect(values.modifications).toBe("");
   });
 
-  it("defaults both term choices to the fixed one-year option", () => {
-    const values = defaultFormValues();
+  it("leaves the year counts blank beside their choice fields", () => {
+    const values = emptyFormValues();
+    // The choices must hold one of two values, so they sit on the common
+    // option; the blank counts are what mark them as unanswered.
     expect(values.mndaTerm).toBe("fixed");
-    expect(values.mndaTermYears).toBe("1");
+    expect(values.mndaTermYears).toBe("");
     expect(values.confidentiality).toBe("fixed");
-    expect(values.confidentialityYears).toBe("1");
+    expect(values.confidentialityYears).toBe("");
   });
 
   it("leaves both parties blank", () => {
-    const values = defaultFormValues();
+    const values = emptyFormValues();
     expect(values.partyOne).toEqual({
       printName: "",
       title: "",
@@ -39,26 +47,10 @@ describe("defaultFormValues", () => {
   });
 
   it("returns a fresh object each call, not a shared reference", () => {
-    const a = defaultFormValues();
-    const b = defaultFormValues();
+    const a = emptyFormValues();
+    const b = emptyFormValues();
     a.partyOne.company = "mutated";
     expect(b.partyOne.company).toBe("");
-  });
-});
-
-describe("today", () => {
-  it("formats as YYYY-MM-DD with zero padding", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 2, 8, 12, 0, 0)); // 8 March 2026, local
-    expect(today()).toBe("2026-03-08");
-  });
-
-  it("uses local date, not UTC, so late-evening entries are not off by one", () => {
-    vi.useFakeTimers();
-    // 23:30 local on the 31st would be the 1st of the next month in UTC
-    // for positive offsets; the local calendar date is what users expect.
-    vi.setSystemTime(new Date(2026, 11, 31, 23, 30, 0));
-    expect(today()).toBe("2026-12-31");
   });
 });
 
@@ -156,7 +148,7 @@ describe("missingRequiredFields", () => {
   });
 
   it("lists everything missing on a fresh form", () => {
-    const missing = missingRequiredFields(defaultFormValues());
+    const missing = missingRequiredFields(emptyFormValues());
     expect(missing).toEqual(
       expect.arrayContaining([
         "Governing Law",
@@ -183,7 +175,7 @@ describe("suggestedFileName", () => {
   });
 
   it("falls back to a generic name when both companies are blank", () => {
-    expect(suggestedFileName(defaultFormValues())).toBe("mutual-nda.pdf");
+    expect(suggestedFileName(emptyFormValues())).toBe("mutual-nda.pdf");
   });
 
   it("uses whichever single company is present", () => {
@@ -220,5 +212,50 @@ describe("suggestedFileName", () => {
     values.partyOne = { ...values.partyOne, company: "!!!" };
     values.partyTwo = { ...values.partyTwo, company: "???" };
     expect(suggestedFileName(values)).toBe("mutual-nda.pdf");
+  });
+});
+
+describe("capturedFields", () => {
+  it("shows nothing at the start of a conversation", () => {
+    expect(capturedFields(emptyFormValues())).toEqual([]);
+  });
+
+  it("lists only what has actually been answered", () => {
+    const rows = capturedFields(
+      complete({ jurisdiction: "", modifications: "" }),
+    );
+    const labels = rows.map((row) => row.label);
+
+    expect(labels).toContain("Governing law");
+    expect(labels).not.toContain("Jurisdiction");
+    expect(labels).not.toContain("Modifications");
+  });
+
+  it("renders the date the way the agreement does", () => {
+    const rows = capturedFields(complete({ effectiveDate: "2026-03-08" }));
+    expect(rows).toContainEqual({
+      label: "Effective date",
+      value: "March 8, 2026",
+    });
+  });
+
+  it("describes each term choice in words, not codes", () => {
+    const fixed = capturedFields(complete({ mndaTermYears: "2" }));
+    expect(fixed).toContainEqual({ label: "Term", value: "2 years" });
+
+    const open = capturedFields(complete({ mndaTerm: "untilTerminated" }));
+    expect(open).toContainEqual({ label: "Term", value: "Until terminated" });
+
+    const forever = capturedFields(complete({ confidentiality: "perpetual" }));
+    expect(forever).toContainEqual({
+      label: "Confidentiality",
+      value: "In perpetuity",
+    });
+  });
+
+  it("names each party's details separately", () => {
+    const labels = capturedFields(complete()).map((row) => row.label);
+    expect(labels).toContain("Party 1 company");
+    expect(labels).toContain("Party 2 signatory");
   });
 });

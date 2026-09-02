@@ -23,8 +23,12 @@ produce one; `/api` works regardless.
 | --- | --- | --- |
 | `PRELEGAL_DATABASE_PATH` | `backend/var/prelegal.db` | SQLite file |
 | `PRELEGAL_STATIC_DIR` | `frontend/out` | The frontend's `next build` output |
+| `OPENROUTER_API_KEY` | — | Credentials for the chat assistant |
 
-The Docker image sets both.
+The Docker image sets the first two. The key is deliberately *not* baked in:
+the start scripts pass it to the container at run time, and `load_settings()`
+reads the repository's `.env` for local runs. Without it everything works
+except `/api/chat`, which answers `503` and says what is missing.
 
 ## Layout
 
@@ -34,8 +38,38 @@ app/db.py            SQLite: connect, transaction, init_db
 app/schema.sql       the schema, applied fresh on every startup
 app/dependencies.py  request-scoped settings and database connections
 app/api/             the /api routers
+app/chat/            the drafting assistant (see below)
 app/main.py          the app factory, lifespan and static mount
 ```
+
+## The drafting assistant
+
+`POST /api/chat` takes the whole transcript and the cover page so far, and
+returns what to say next plus the cover page with the assistant's edits applied.
+
+```
+app/chat/models.py   the wire contract, which is also the LLM's output schema
+app/chat/prompt.py   the system prompt and per-turn state
+app/chat/agent.py    the LiteLLM call
+app/chat/merge.py    applying the model's patch
+```
+
+**Stateless.** The browser keeps the conversation and sends it every turn. There
+is no authenticated user to own a conversation and the database does not survive
+a restart, so storing it here would be pretending.
+
+**The model returns a patch, not a full record.** `null` means "I learned
+nothing about this field", never "clear it" — `merge.py` also ignores blank
+strings. Asking for the whole cover page each turn invites the model to re-emit
+what it half-remembers and quietly blank a value the user already gave, which on
+a legal document is a bad way to lose the governing law.
+
+**Names cross the wire in camelCase.** The models are snake_case in Python and
+serialise through pydantic aliases, so the JSON schema the model fills in and
+the object the frontend adopts both match `frontend/src/lib/form.ts` exactly.
+
+Tests replace the LLM entirely (`tests/test_chat_api.py`) — nothing in the suite
+makes a network call.
 
 ## Two things worth knowing
 

@@ -1,8 +1,13 @@
 /**
- * The shape of the cover-page form, plus its defaults.
+ * The cover page's values, and the helpers that read them.
  *
  * Field names mirror the headings in templates/mutual-nda-coverpage.md so the
- * mapping between the form and the agreement stays obvious.
+ * mapping to the agreement stays obvious. They are also the names the chat
+ * assistant fills in: `backend/app/chat/models.py` declares the same shape, and
+ * a response from /api/chat is adopted here as-is, so the two must not drift.
+ *
+ * The `NdaFormValues` name predates PL-5, which replaced the form with a
+ * conversation. The values outlived the form.
  */
 
 export type TermChoice = "fixed" | "untilTerminated";
@@ -30,30 +35,29 @@ export type NdaFormValues = {
   partyTwo: Party;
 };
 
-/** The template's own suggested Purpose, offered as the starting value. */
-export const DEFAULT_PURPOSE =
-  "Evaluating whether to enter into a business relationship with the other party.";
-
 function emptyParty(): Party {
   return { printName: "", title: "", company: "", noticeAddress: "" };
 }
 
-/** Today in `YYYY-MM-DD`, using local time so the date matches the user's calendar. */
-export function today(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
-export function defaultFormValues(): NdaFormValues {
+/**
+ * A blank cover page: where every conversation starts.
+ *
+ * Nothing is pre-filled, deliberately. The assistant is sent these values on
+ * every turn and asks about whatever is still empty, so a suggested purpose or
+ * a term of "1 year" sitting here would be silently adopted as the user's
+ * answer to a question they were never asked. The choice fields have to hold
+ * one of their two values, so they sit on the common option; the year counts
+ * beside them stay blank, which is what the preview and the assistant both
+ * read as "not answered yet".
+ */
+export function emptyFormValues(): NdaFormValues {
   return {
-    purpose: DEFAULT_PURPOSE,
-    effectiveDate: today(),
+    purpose: "",
+    effectiveDate: "",
     mndaTerm: "fixed",
-    mndaTermYears: "1",
+    mndaTermYears: "",
     confidentiality: "fixed",
-    confidentialityYears: "1",
+    confidentialityYears: "",
     governingLaw: "",
     jurisdiction: "",
     modifications: "",
@@ -116,6 +120,46 @@ export function missingRequiredFields(values: NdaFormValues): string[] {
     missing.push("Term of Confidentiality length");
   }
   return missing;
+}
+
+/**
+ * What the assistant has captured so far, for the read-out beside the chat.
+ *
+ * Only filled fields appear: an empty row tells the user nothing they cannot
+ * already see in the agreement preview, and a wall of blanks would recreate the
+ * form this feature replaced.
+ */
+export function capturedFields(
+  values: NdaFormValues,
+): Array<{ label: string; value: string }> {
+  const party = (label: string, p: Party) =>
+    [
+      { label: `${label} company`, value: p.company },
+      { label: `${label} signatory`, value: p.printName },
+      { label: `${label} title`, value: p.title },
+      { label: `${label} notice address`, value: p.noticeAddress },
+    ] as const;
+
+  const term =
+    values.mndaTerm === "fixed"
+      ? formatYears(values.mndaTermYears)
+      : "Until terminated";
+  const confidentiality =
+    values.confidentiality === "fixed"
+      ? formatYears(values.confidentialityYears)
+      : "In perpetuity";
+
+  return [
+    { label: "Purpose", value: values.purpose },
+    { label: "Effective date", value: formatEffectiveDate(values.effectiveDate) },
+    { label: "Term", value: term },
+    { label: "Confidentiality", value: confidentiality },
+    { label: "Governing law", value: values.governingLaw },
+    { label: "Jurisdiction", value: values.jurisdiction },
+    ...party("Party 1", values.partyOne),
+    ...party("Party 2", values.partyTwo),
+    { label: "Modifications", value: values.modifications },
+  ].filter((row) => row.value.trim().length > 0);
 }
 
 /** A filename-safe slug for the download, derived from the two companies. */

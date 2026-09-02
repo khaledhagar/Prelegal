@@ -43,10 +43,20 @@ authentication replaces the inside of that file and nothing else.
 
 ## The Mutual NDA creator
 
+The user fills the agreement in by talking to an assistant (`NdaChat`), not by
+completing a form — PL-5 replaced the cover-page form with a conversation. Each
+turn posts the transcript and the current values to `/api/chat` and gets back a
+reply plus the updated values, so the preview fills in as the conversation goes.
+
+**Chat needs the backend.** The request is same-origin, so `npm run dev` alone
+has no `/api` to call and the chat reports that it cannot reach the assistant.
+Run the full stack (`scripts/start-*`) to use it.
+
 ### How it works
 
-The tool is entirely client-side. Form data never leaves the browser — which
-matters, because the inputs are the terms of a confidential agreement.
+Everything downstream of the values is unchanged, and still entirely
+client-side: the assembled agreement and the PDF are built in the browser, and
+the only thing that ever leaves it is the conversation itself.
 
 ```
 templates/mutual-nda.md              (repository, single source of truth)
@@ -56,7 +66,7 @@ templates/mutual-nda.md              (repository, single source of truth)
 src/generated/mnda-template.ts       (generated, git-ignored)
         │
         │  src/lib/markdown.ts          -- markdown -> blocks
-        │  src/lib/assemble.ts          -- + user's cover page values
+        │  src/lib/assemble.ts          -- + cover page values from the chat
         ▼
    document model  (src/lib/document.ts)
         │

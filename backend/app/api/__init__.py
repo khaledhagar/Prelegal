@@ -6,9 +6,10 @@ adds a module rather than editing the app factory.
 
 from fastapi import APIRouter
 
-from app.api import health
+from app.api import chat, health
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(chat.router)
 
 __all__ = ["api_router"]
