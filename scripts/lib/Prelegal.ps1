@@ -1,0 +1,89 @@
+# Shared implementation behind start-windows.ps1 and stop-windows.ps1.
+#
+# Mirrors scripts/lib/prelegal.sh. PowerShell cannot run the shell version, so
+# the logic exists twice; keep the two in step when changing either.
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$script:ImageName = 'prelegal:local'
+$script:ContainerName = 'prelegal'
+$script:Port = if ($env:PRELEGAL_PORT) { $env:PRELEGAL_PORT } else { '8000' }
+$script:RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+
+function Assert-Docker {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        throw 'docker is not installed or not on PATH.'
+    }
+    docker info *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw 'docker is installed but not running -- start Docker Desktop and try again.'
+    }
+}
+
+function Test-ContainerRunning {
+    $id = docker ps --quiet --filter "name=^/$script:ContainerName$"
+    return -not [string]::IsNullOrWhiteSpace($id)
+}
+
+# Polls until the app reports a ready database. The container is up long before
+# the app is, so returning at `docker run` would hand the user a URL that
+# refuses connections.
+function Wait-UntilReady {
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        try {
+            Invoke-RestMethod -Uri "http://localhost:$script:Port/api/health" -TimeoutSec 2 | Out-Null
+            return $true
+        }
+        catch {
+            # Not up yet. A container that has already exited never will be, so
+            # say so now rather than after the full timeout.
+            if (-not (Test-ContainerRunning)) {
+                Write-Host 'The container stopped during startup. Last output:'
+                docker logs $script:ContainerName 2>&1 | Select-Object -Last 20
+                return $false
+            }
+            Start-Sleep -Seconds 1
+        }
+    }
+
+    Write-Host "Timed out waiting for http://localhost:$script:Port/api/health. Last output:"
+    docker logs $script:ContainerName 2>&1 | Select-Object -Last 20
+    return $false
+}
+
+function Start-Prelegal {
+    Assert-Docker
+
+    Write-Host "Building $script:ImageName ..."
+    docker build --tag $script:ImageName $script:RepoRoot
+    if ($LASTEXITCODE -ne 0) { throw 'docker build failed.' }
+
+    # Replace any previous container. The database is rebuilt on startup anyway,
+    # so there is nothing here worth preserving between runs.
+    docker rm --force $script:ContainerName *> $null
+
+    Write-Host "Starting $script:ContainerName on port $script:Port ..."
+    docker run --detach --name $script:ContainerName --publish "$($script:Port):8000" $script:ImageName | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'docker run failed.' }
+
+    if (Wait-UntilReady) {
+        Write-Host "Prelegal is running at http://localhost:$script:Port"
+    }
+    else {
+        throw 'Prelegal failed to start.'
+    }
+}
+
+function Stop-Prelegal {
+    Assert-Docker
+
+    $id = docker ps --all --quiet --filter "name=^/$script:ContainerName$"
+    if ([string]::IsNullOrWhiteSpace($id)) {
+        Write-Host "$script:ContainerName is not running."
+        return
+    }
+
+    docker rm --force $script:ContainerName | Out-Null
+    Write-Host "Stopped $script:ContainerName."
+}
