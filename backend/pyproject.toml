@@ -1,0 +1,24 @@
+[project]
+name = "prelegal-backend"
+version = "0.1.0"
+description = "FastAPI backend for Prelegal: serves the built frontend and the /api surface."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.118",
+    "uvicorn[standard]>=0.38",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "httpx2>=2.0",
+]
+
+[tool.uv]
+# An application, not a distributable library: there is nothing to build or
+# install, so uv only needs to resolve the dependencies.
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

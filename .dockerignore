@@ -1,0 +1,39 @@
+# Everything here is either rebuilt inside the image or has no business in it.
+# Keeping the build context small also keeps `docker build` honest: if a file is
+# needed, the Dockerfile has to say so.
+
+.git/
+.github/
+.claude/
+
+# Node -- reinstalled from the lockfile in the build stage.
+**/node_modules/
+frontend/.next/
+frontend/out/
+frontend/*.tsbuildinfo
+frontend/src/generated/
+
+# Python -- resolved from uv.lock in the runtime stage.
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local state.
+backend/var/
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets never enter the build context.
+.env
+.env.*
+!.env.example
+
+# Editors and OS noise.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

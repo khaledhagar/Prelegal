@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * The Prelegal palette (see CLAUDE.md). Declared as theme colours so they are
+ * reachable as ordinary utilities -- `bg-brand-navy`, `text-brand-gray` -- and
+ * the hex values live in exactly one place.
+ *
+ * These dress the product chrome: the login screen and the signed-in shell.
+ * The Mutual NDA tool inside the shell keeps its own styling for now; restyling
+ * it is a product change, and PL-4 is foundation only.
+ */
+@theme {
+  --color-brand-yellow: #ecad0a;
+  --color-brand-blue: #209dd7;
+  --color-brand-purple: #753991;
+  --color-brand-navy: #032147;
+  --color-brand-gray: #888888;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * The Mutual NDA creator: cover-page form on the left, live agreement on the
+ * right, PDF download in between.
+ *
+ * This was the whole application before PL-4; it is now one tool hosted inside
+ * the signed-in shell, which owns the product header and background. Its
+ * behaviour is unchanged.
+ */
+
 import { useMemo, useState } from "react";
 import { NdaForm } from "@/components/NdaForm";
 import { NdaPreview } from "@/components/NdaPreview";
@@ -7,7 +16,7 @@ import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { assembleDocument } from "@/lib/assemble";
 import { defaultFormValues } from "@/lib/form";
 
-export default function Home() {
+export function NdaCreator() {
   const [values, setValues] = useState(defaultFormValues);
 
   // Reassembled on each keystroke. The document is a few dozen small objects,
@@ -15,7 +24,7 @@ export default function Home() {
   const document = useMemo(() => assembleDocument(values), [values]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <>
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto max-w-7xl px-6 py-5">
           <h1 className="text-lg font-semibold tracking-tight">
@@ -63,6 +72,6 @@ export default function Home() {
           </p>
         </section>
       </main>
-    </div>
+    </>
   );
 }

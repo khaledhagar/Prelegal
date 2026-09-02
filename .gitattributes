@@ -1,0 +1,10 @@
+# Line endings.
+#
+# Shell scripts and the Dockerfile must keep LF whatever the checkout platform
+# does: a `.sh` file with CRLF endings fails on macOS and Linux with a confusing
+# "bad interpreter" error, because the carriage return becomes part of the
+# shebang path. PowerShell is the mirror image and prefers CRLF.
+
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.ps1       text eol=crlf

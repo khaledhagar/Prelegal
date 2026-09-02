@@ -1,11 +1,11 @@
-# Mutual NDA creator (PL-3)
+# Prelegal frontend
 
-A prototype web app that turns a short form into a complete, downloadable Mutual
-Non-Disclosure Agreement. Fill in the cover page, watch the agreement assemble
-live, and download it as a PDF.
+The Next.js app. Two routes:
 
-Built on the Common Paper Mutual NDA (Version 1.0) from the repository's
-[`templates/`](../templates) directory.
+| Route | What it is |
+| --- | --- |
+| `/` | Sign-in — a **placeholder**. See below. |
+| `/app` | The signed-in shell, hosting the Mutual NDA creator |
 
 ## Running it
 
@@ -17,16 +17,36 @@ npm run dev      # http://localhost:3000
 ```bash
 npm run build    # static export to out/
 npm run lint
+npm test
 ```
 
-`predev` and `prebuild` run `scripts/build-template.mjs` automatically, so the
-app always picks up the current agreement text.
+`predev`, `prebuild` and `pretest` run `scripts/build-template.mjs`
+automatically, so the app always picks up the current agreement text.
 
-## How it works
+In production nothing runs this: `npm run build` writes plain static files to
+`out/`, and the backend serves them. `trailingSlash: true` is what makes `/app`
+land as `out/app/index.html`, which is the shape FastAPI's static mount
+resolves — see [`../backend/README.md`](../backend/README.md).
 
-The app is entirely client-side. Form data never leaves the browser — which
-matters, because the inputs are the terms of a confidential agreement. It builds
-to plain static files with `output: "export"` and needs no server.
+## Sign-in is fake
+
+`src/lib/session.ts` is the whole of it. The login screen takes a name and an
+email, keeps them in `localStorage`, and lets the user through; no password is
+checked, no request is made, and no account exists. The guard in
+`src/components/AppShell.tsx` is a convenience for the person using the app, not
+a security boundary — the whole frontend is static files, so anything that
+genuinely needs protecting has to be enforced by the backend.
+
+That is deliberate for now (PL-4) and confined to one module: `useSession`,
+`startSession` and `endSession` are what every component calls, so real
+authentication replaces the inside of that file and nothing else.
+
+## The Mutual NDA creator
+
+### How it works
+
+The tool is entirely client-side. Form data never leaves the browser — which
+matters, because the inputs are the terms of a confidential agreement.
 
 ```
 templates/mutual-nda.md              (repository, single source of truth)
@@ -55,7 +75,7 @@ which is a valid `ReactNode`, so the block would be dropped from the document
 with no error anywhere. Verified by adding an unhandled variant and confirming
 `tsc --noEmit` now reports an error in both renderers.
 
-### Notable decisions
+#### Notable decisions
 
 - **The PDF contains real text, not a screenshot.** `@react-pdf/renderer`
   paginates automatically and emits selectable, searchable, accessible text.
