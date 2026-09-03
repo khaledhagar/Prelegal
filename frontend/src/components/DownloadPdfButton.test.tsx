@@ -2,23 +2,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DownloadPdfButton } from "./DownloadPdfButton";
-import { assembleDocument } from "@/lib/assemble";
-import { emptyFormValues, type NdaFormValues } from "@/lib/form";
-import { filledFormValues as complete } from "@/lib/fixtures";
+import { assembleAgreement } from "@/lib/assemble";
+import { documentFixture, filledValues } from "@/lib/fixtures";
+import { emptyValues } from "@/lib/values";
+import type { DocumentValues } from "@/lib/documents/types";
 
-// The real renderer is exercised in src/pdf/NdaDocument.test.tsx. Here we care
-// about the button's own behaviour: wiring, filename, errors, disabled state.
+// The real renderer is exercised in src/pdf/AgreementDocument.test.tsx. Here we
+// care about the button's own behaviour: wiring, filename, errors, disabled
+// state.
 const toBlob = vi.fn();
 vi.mock("@react-pdf/renderer", () => ({
   pdf: () => ({ toBlob }),
 }));
-vi.mock("@/pdf/NdaDocument", () => ({
-  NdaPdfDocument: () => null,
+vi.mock("@/pdf/AgreementDocument", () => ({
+  AgreementPdfDocument: () => null,
 }));
 
-function setup(values: NdaFormValues) {
+const mnda = documentFixture("mutual-nda");
+const complete = () => filledValues("mutual-nda");
+
+function setup(values: DocumentValues) {
   return render(
-    <DownloadPdfButton document={assembleDocument(values)} values={values} />,
+    <DownloadPdfButton
+      agreement={assembleAgreement(mnda, values)}
+      document={mnda}
+      values={values}
+    />,
   );
 }
 
@@ -68,11 +77,13 @@ describe("DownloadPdfButton", () => {
     setup(complete());
     await userEvent.click(screen.getByRole("button", { name: /download pdf/i }));
     await waitFor(() => expect(clicked).toHaveLength(1));
-    expect(clicked[0].download).toBe("mutual-nda-acme-inc-and-globex-corporation.pdf");
+    expect(clicked[0].download).toBe(
+      "mutual-nda-aardvark-industries-inc-and-bramble-analytics-ltd.pdf",
+    );
   });
 
   it("falls back to a generic filename when companies are blank", async () => {
-    setup(emptyFormValues());
+    setup(emptyValues("mutual-nda"));
     await userEvent.click(screen.getByRole("button", { name: /download pdf/i }));
     await waitFor(() => expect(clicked).toHaveLength(1));
     expect(clicked[0].download).toBe("mutual-nda.pdf");
@@ -97,7 +108,7 @@ describe("DownloadPdfButton", () => {
   });
 
   it("warns about blank required fields but still allows download", async () => {
-    setup(emptyFormValues());
+    setup(emptyValues("mutual-nda"));
     expect(screen.getByText(/still blank/i)).toHaveTextContent("Governing Law");
     expect(screen.getByRole("button", { name: /download pdf/i })).toBeEnabled();
   });

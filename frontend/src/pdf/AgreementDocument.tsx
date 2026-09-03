@@ -1,7 +1,7 @@
 /**
  * Renders the shared document model to a PDF.
  *
- * Mirrors src/components/NdaPreview.tsx block for block. @react-pdf/renderer
+ * Mirrors src/components/AgreementPreview.tsx block for block. @react-pdf/renderer
  * paginates automatically and emits real text, so the result stays selectable,
  * searchable, and accessible -- which a rasterized screenshot would not.
  */
@@ -17,7 +17,7 @@ import {
   assertNever,
   type Block,
   type Inline,
-  type NdaDocument as Model,
+  type Agreement as Model,
 } from "@/lib/document";
 
 const COLORS = {
@@ -28,6 +28,22 @@ const COLORS = {
   link: "#0369a1",
   highlight: "#fef3c7",
 };
+
+/**
+ * LETTER is 792pt tall. The page-number footer is positioned from the top
+ * rather than with `bottom`, which is what you would reach for first.
+ *
+ * A `fixed` element positioned with `bottom` makes @react-pdf 4.6.1 compute a
+ * nonsense translation once a document runs past a certain length -- rendering
+ * dies with "unsupported number: -8.85e+21" somewhere in the middle of the
+ * Cloud Service, Professional Services and Software License agreements, which
+ * are the three longest. Anchoring from the top puts the footer in the same
+ * place and renders all eleven. Do not "tidy" this back to `bottom` without
+ * rendering every agreement first -- src/pdf/AgreementDocument.test.tsx does
+ * exactly that.
+ */
+const PAGE_HEIGHT = 792;
+const FOOTER_FROM_TOP = PAGE_HEIGHT - 40;
 
 const styles = StyleSheet.create({
   page: {
@@ -58,6 +74,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 8, fontStyle: "italic", color: COLORS.faint, marginTop: 1 },
   paragraph: { marginTop: 5, textAlign: "justify" },
   clause: { marginTop: 9, textAlign: "justify" },
+  section: { marginTop: 14, fontSize: 11, fontFamily: "Helvetica-Bold" },
   option: { marginTop: 3, flexDirection: "row" },
   optionMarker: { width: 18, fontFamily: "Courier" },
   optionBody: { flex: 1 },
@@ -90,7 +107,7 @@ const styles = StyleSheet.create({
   },
   pageNumber: {
     position: "absolute",
-    bottom: 32,
+    top: FOOTER_FROM_TOP,
     left: 56,
     right: 56,
     textAlign: "center",
@@ -197,10 +214,16 @@ function BlockView({ block }: { block: Block }) {
       return <Text style={styles.label}>{block.text}</Text>;
     case "paragraph":
       return <Text style={styles.paragraph}>{runs(block.content)}</Text>;
+    case "section":
+      return (
+        <Text style={styles.section}>
+          {block.marker} {block.text}
+        </Text>
+      );
     case "clause":
       return (
-        <Text style={styles.clause}>
-          <Text style={styles.strong}>{block.number}. </Text>
+        <Text style={[styles.clause, { marginLeft: block.depth * 14 }]}>
+          <Text style={styles.strong}>{block.marker} </Text>
           {runs(block.content)}
         </Text>
       );
@@ -223,13 +246,16 @@ function BlockView({ block }: { block: Block }) {
   }
 }
 
-export function NdaPdfDocument({ document }: { document: Model }) {
+export function AgreementPdfDocument({
+  document,
+  name,
+}: {
+  document: Model;
+  /** The agreement's name, for the PDF's own title metadata. */
+  name: string;
+}) {
   return (
-    <Document
-      title="Mutual Non-Disclosure Agreement"
-      author="Prelegal"
-      subject="Common Paper Mutual NDA (Version 1.0)"
-    >
+    <Document title={name} author="Prelegal" subject={`Common Paper ${name}`}>
       <Page size="LETTER" style={styles.page}>
         {document.blocks.map((block, index) => (
           <BlockView key={index} block={block} />

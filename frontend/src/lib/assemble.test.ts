@@ -1,292 +1,256 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { assembleDocument, buildCoverPage } from "./assemble";
-import { emptyFormValues } from "./form";
-import { inlineToPlainText, type Block } from "./document";
-import { filledFormValues as filled } from "./fixtures";
+import { allDocuments } from "./documents/registry";
+import { assembleAgreement, buildCoverPage } from "./assemble";
+import { documentFixture, filledValues } from "./fixtures";
+import { emptyValues } from "./values";
+import type { Block } from "./document";
 
-/** All rendered text of a block list, for substring assertions. */
-function textOf(blocks: Block[]): string {
-  return blocks
-    .map((block) => {
-      switch (block.kind) {
-        case "title":
-        case "heading":
-        case "label":
-          return block.text;
-        case "paragraph":
-        case "clause":
-        case "option":
-        case "footnote":
-          return inlineToPlainText(block.content);
-        case "signatures":
-          return [
-            ...block.parties,
-            ...block.rows.flatMap((row) => [row.label, ...row.values]),
-          ].join(" ");
-      }
-    })
-    .join("\n");
-}
+const headings = (blocks: Block[]) =>
+  blocks
+    .filter((block): block is Extract<Block, { kind: "heading" }> =>
+      block.kind === "heading",
+    )
+    .map((block) => block.text);
 
-function optionsUnder(blocks: Block[], heading: string) {
-  const start = blocks.findIndex((b) => b.kind === "heading" && b.text === heading);
-  expect(start).toBeGreaterThanOrEqual(0);
-  const options: Extract<Block, { kind: "option" }>[] = [];
-  for (let i = start + 1; i < blocks.length; i++) {
-    const block = blocks[i];
-    if (block.kind === "heading") break;
-    if (block.kind === "option") options.push(block);
-  }
-  return options;
-}
+const options = (blocks: Block[]) =>
+  blocks.filter((block): block is Extract<Block, { kind: "option" }> =>
+    block.kind === "option",
+  );
+
+const plainText = (blocks: Block[]) =>
+  blocks
+    .flatMap((block) => ("content" in block ? block.content : []))
+    .map((run) => run.text)
+    .join(" ");
 
 describe("buildCoverPage", () => {
-  it("opens with the agreement title", () => {
-    const [first] = buildCoverPage(filled());
-    expect(first).toEqual({
-      kind: "title",
-      text: "Mutual Non-Disclosure Agreement",
-    });
+  it("opens with the agreement's name and what it is made of", () => {
+    const document = documentFixture("service-level-agreement");
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+
+    expect(blocks[0]).toEqual({ kind: "title", text: document.name });
+    expect(plainText([blocks[1]])).toContain("consists of");
+    expect(plainText([blocks[1]])).toContain("Standard Terms");
   });
 
-  it("includes every user-entered value", () => {
-    const text = textOf(buildCoverPage(filled()));
-    for (const expected of [
-      "Delaware",
-      "courts located in New Castle, DE",
-      "Acme, Inc.",
-      "Globex Corporation",
-      "Jordan Lee",
-      "Sam Rivera",
-      "Chief Executive Officer",
-      "General Counsel",
-      "legal@acme.com",
-      "notices@globex.com",
-    ]) {
-      expect(text).toContain(expected);
-    }
+  it("links to the published standard terms when the template names them", () => {
+    const document = documentFixture("service-level-agreement");
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+    const links = blocks
+      .flatMap((block) => ("content" in block ? block.content : []))
+      .filter((run) => run.kind === "link");
+
+    expect(links[0]?.text).toContain("commonpaper.com/standards");
   });
 
-  it("formats the effective date as long-form prose", () => {
-    expect(textOf(buildCoverPage(filled()))).toContain("March 8, 2026");
+  it("shows required fields even when blank, so the gap is visible", () => {
+    const document = documentFixture("service-level-agreement");
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+
+    expect(headings(blocks)).toContain("Target Uptime");
   });
 
-  it("marks blank required values as unfilled placeholders", () => {
-    const blocks = buildCoverPage(filled({ governingLaw: "  " }));
-    const values = blocks
-      .filter((b) => b.kind === "paragraph")
-      .flatMap((b) => (b.kind === "paragraph" ? b.content : []))
-      .filter((run) => run.kind === "value");
-    const unfilled = values.filter((run) => run.kind === "value" && !run.filled);
-    expect(unfilled.some((run) => run.text === "[State]")).toBe(true);
+  it("hides optional fields until they are answered", () => {
+    // An empty optional heading on a signed agreement invites confusion about
+    // whether it was negotiated and left out, or never discussed.
+    const document = documentFixture("service-level-agreement");
+    const blank = buildCoverPage(document, emptyValues(document.slug));
+    expect(headings(blank)).not.toContain("Scheduled Downtime");
+
+    const values = emptyValues(document.slug);
+    values.fields.scheduledDowntime = "Sundays, 02:00-04:00 UTC, 7 days' notice.";
+    expect(headings(buildCoverPage(document, values))).toContain("Scheduled Downtime");
   });
 
-  it("trims surrounding whitespace from entered values", () => {
-    const blocks = buildCoverPage(filled({ governingLaw: "  Delaware  " }));
-    const values = blocks
-      .flatMap((b) => (b.kind === "paragraph" ? b.content : []))
-      .filter((run) => run.kind === "value" && run.filled);
-    expect(values.some((run) => run.text === "Delaware")).toBe(true);
+  it("groups fields under section headings when an agreement splits them", () => {
+    // A PSA's terms live on Key Terms and a Statement of Work.
+    const document = documentFixture("professional-services-agreement");
+    const blocks = buildCoverPage(document, filledValues(document.slug));
+
+    expect(headings(blocks)).toContain("Statement of Work");
+    expect(headings(blocks)).toContain("Key Terms");
   });
 
-  describe("MNDA term", () => {
-    it("checks the fixed option and pluralizes multiple years", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ mndaTerm: "fixed", mndaTermYears: "3" })),
-        "MNDA Term",
-      );
-      expect(options).toHaveLength(2);
-      expect(options[0].checked).toBe(true);
-      expect(options[1].checked).toBe(false);
-      expect(inlineToPlainText(options[0].content)).toContain("3 years");
-    });
+  it("omits the group heading when everything sits in one place", () => {
+    const document = documentFixture("mutual-nda");
+    const blocks = buildCoverPage(document, filledValues(document.slug));
 
-    it("uses the singular for exactly one year", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ mndaTerm: "fixed", mndaTermYears: "1" })),
-        "MNDA Term",
-      );
-      expect(inlineToPlainText(options[0].content)).toContain("1 year");
-      expect(inlineToPlainText(options[0].content)).not.toContain("1 years");
-    });
-
-    // This path was never exercised before these tests existed.
-    it("checks the until-terminated option instead", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ mndaTerm: "untilTerminated" })),
-        "MNDA Term",
-      );
-      expect(options[0].checked).toBe(false);
-      expect(options[1].checked).toBe(true);
-      expect(inlineToPlainText(options[1].content)).toContain(
-        "Continues until terminated",
-      );
-    });
-
-    it("still renders both options when the year field is blank", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ mndaTerm: "fixed", mndaTermYears: "" })),
-        "MNDA Term",
-      );
-      expect(options).toHaveLength(2);
-      expect(inlineToPlainText(options[0].content)).toContain("___");
-    });
+    expect(headings(blocks)).not.toContain("Cover Page");
   });
 
-  describe("term of confidentiality", () => {
-    it("checks the fixed option by default", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ confidentiality: "fixed", confidentialityYears: "5" })),
-        "Term of Confidentiality",
-      );
-      expect(options[0].checked).toBe(true);
-      expect(inlineToPlainText(options[0].content)).toContain("5 years");
-      expect(inlineToPlainText(options[0].content)).toContain("trade secret");
-    });
+  it("renders a field's caption under its heading", () => {
+    const document = documentFixture("mutual-nda");
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+    const labels = blocks.filter((block) => block.kind === "label");
 
-    // Likewise never exercised before.
-    it("checks the perpetual option instead", () => {
-      const options = optionsUnder(
-        buildCoverPage(filled({ confidentiality: "perpetual" })),
-        "Term of Confidentiality",
-      );
-      expect(options[0].checked).toBe(false);
-      expect(options[1].checked).toBe(true);
-      expect(inlineToPlainText(options[1].content)).toBe("In perpetuity.");
-    });
+    expect(labels.map((block) => block.text)).toContain(
+      "How Confidential Information may be used",
+    );
   });
 
-  describe("modifications", () => {
-    it("omits the section entirely when blank", () => {
-      const blocks = buildCoverPage(filled({ modifications: "" }));
-      expect(blocks.some((b) => b.kind === "heading" && b.text === "MNDA Modifications")).toBe(
-        false,
-      );
-    });
+  it("splits multi-line answers into separate paragraphs", () => {
+    // HTML collapses whitespace and react-pdf ignores embedded newlines, so a
+    // list typed on separate lines would otherwise run together.
+    const document = documentFixture("mutual-nda");
+    const values = emptyValues(document.slug);
+    values.fields.purpose = "First line\nSecond line\nThird line";
 
-    it("omits the section when only whitespace", () => {
-      const blocks = buildCoverPage(filled({ modifications: "   \n  " }));
-      expect(blocks.some((b) => b.kind === "heading" && b.text === "MNDA Modifications")).toBe(
-        false,
-      );
-    });
+    const blocks = buildCoverPage(document, values);
+    const texts = blocks
+      .filter((block) => block.kind === "paragraph")
+      .map((block) => plainText([block]));
 
-    it("includes the section and its text when provided", () => {
-      const blocks = buildCoverPage(
-        filled({ modifications: "Section 5 is replaced in its entirety." }),
-      );
-      expect(blocks.some((b) => b.kind === "heading" && b.text === "MNDA Modifications")).toBe(
-        true,
-      );
-      expect(textOf(blocks)).toContain("Section 5 is replaced in its entirety.");
-    });
+    expect(texts).toContain("First line");
+    expect(texts).toContain("Second line");
+    expect(texts).toContain("Third line");
   });
 
-  describe("signature block", () => {
-    it("labels columns with the two company names", () => {
-      const signatures = buildCoverPage(filled()).find((b) => b.kind === "signatures");
-      expect(signatures?.kind === "signatures" && signatures.parties).toEqual([
-        "Acme, Inc.",
-        "Globex Corporation",
-      ]);
-    });
+  it("ends with the signature block, named by the agreement's party roles", () => {
+    const document = documentFixture("service-level-agreement");
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+    const last = blocks[blocks.length - 1];
 
-    it("falls back to generic party labels when a company is blank", () => {
-      const values = filled();
-      values.partyTwo = { ...values.partyTwo, company: "" };
-      const signatures = buildCoverPage(values).find((b) => b.kind === "signatures");
-      expect(signatures?.kind === "signatures" && signatures.parties).toEqual([
-        "Acme, Inc.",
-        "Party 2",
-      ]);
-    });
+    expect(last.kind).toBe("signatures");
+    if (last.kind !== "signatures") throw new Error("expected signatures");
+    expect(last.parties).toEqual(["Provider", "Customer"]);
+    expect(last.rows.map((row) => row.label)).toEqual([
+      "Signature",
+      "Print Name",
+      "Title",
+      "Company",
+      "Notice Address",
+      "Date",
+    ]);
+  });
 
-    it("leaves signature and date rows blank for wet ink", () => {
-      const signatures = buildCoverPage(filled()).find((b) => b.kind === "signatures");
-      if (signatures?.kind !== "signatures") throw new Error("no signature block");
-      const byLabel = Object.fromEntries(
-        signatures.rows.map((row) => [row.label, row.values]),
-      );
-      expect(byLabel["Signature"]).toEqual(["", ""]);
-      expect(byLabel["Date"]).toEqual(["", ""]);
-      expect(byLabel["Print Name"]).toEqual(["Jordan Lee", "Sam Rivera"]);
-    });
+  it("puts the companies in the signature block once they are known", () => {
+    const document = documentFixture("mutual-nda");
+    const blocks = buildCoverPage(document, filledValues(document.slug));
+    const last = blocks[blocks.length - 1];
 
-    it("has exactly the six rows the template defines", () => {
-      const signatures = buildCoverPage(filled()).find((b) => b.kind === "signatures");
-      expect(signatures?.kind === "signatures" && signatures.rows.map((r) => r.label)).toEqual([
-        "Signature",
-        "Print Name",
-        "Title",
-        "Company",
-        "Notice Address",
-        "Date",
-      ]);
-    });
+    if (last.kind !== "signatures") throw new Error("expected signatures");
+    expect(last.parties).toEqual([
+      "Aardvark Industries, Inc.",
+      "Bramble Analytics Ltd",
+    ]);
   });
 });
 
-describe("assembleDocument", () => {
-  it("puts the cover page before the standard terms", () => {
-    const { blocks } = assembleDocument(filled());
-    const coverIndex = blocks.findIndex(
-      (b) => b.kind === "title" && b.text === "Mutual Non-Disclosure Agreement",
+describe("either/or terms", () => {
+  const document = documentFixture("mutual-nda");
+
+  it("ticks the option the answer matches word for word", () => {
+    const values = emptyValues(document.slug);
+    values.fields.mndaTerm = "Expires 3 year(s) from Effective Date.";
+
+    const blocks = buildCoverPage(document, values);
+    const ticked = options(blocks).filter((block) => block.checked);
+
+    expect(ticked).toHaveLength(1);
+    expect(plainText(ticked)).toContain("Expires 3 year(s)");
+  });
+
+  it("ticks the numbered option when the assistant answers with just a number", () => {
+    // The assistant is told to copy the phrase, but it is a language model and
+    // will sometimes answer "2 years" to "how long should the NDA run?".
+    const values = emptyValues(document.slug);
+    values.fields.mndaTerm = "2 years";
+
+    const ticked = options(buildCoverPage(document, values)).filter(
+      (block) => block.checked,
     );
-    const termsIndex = blocks.findIndex(
-      (b) => b.kind === "title" && b.text === "Standard Terms",
-    );
-    expect(coverIndex).toBe(0);
-    expect(termsIndex).toBeGreaterThan(coverIndex);
+
+    expect(ticked).toHaveLength(1);
+    expect(plainText(ticked)).toBe("Expires 2 year(s) from Effective Date.");
   });
 
-  it("includes all 11 standard-terms clauses", () => {
-    const { blocks } = assembleDocument(filled());
-    expect(blocks.filter((b) => b.kind === "clause")).toHaveLength(11);
+  it("ticks the alternative when the answer is the other phrase", () => {
+    const values = emptyValues(document.slug);
+    values.fields.mndaTerm =
+      "Continues until terminated in accordance with the terms of the MNDA.";
+
+    const blocks = buildCoverPage(document, values);
+    const ticked = options(blocks).filter((block) => block.checked);
+
+    expect(ticked).toHaveLength(1);
+    expect(plainText(ticked)).toContain("until terminated");
   });
 
-  it("never substitutes user values into the standard terms", () => {
-    // The terms must stay verbatim; values belong on the cover page only.
-    const { blocks } = assembleDocument(filled());
-    const termsStart = blocks.findIndex(
-      (b) => b.kind === "title" && b.text === "Standard Terms",
-    );
-    const termsText = textOf(blocks.slice(termsStart));
-    expect(termsText).not.toContain("Delaware");
-    expect(termsText).not.toContain("Acme, Inc.");
-    expect(termsText).not.toContain("Jordan Lee");
+  it("leaves every box empty while the term is unanswered", () => {
+    const blocks = buildCoverPage(document, emptyValues(document.slug));
+    const term = options(blocks);
+
+    expect(term.length).toBeGreaterThan(0);
+    expect(term.every((block) => !block.checked)).toBe(true);
   });
 
-  it("keeps cover-page references in the terms as references", () => {
-    const { blocks } = assembleDocument(filled());
-    const references = blocks
-      .filter((b) => b.kind === "clause")
-      .flatMap((b) => (b.kind === "clause" ? b.content : []))
-      .filter((run) => run.kind === "reference");
-    expect(references.length).toBeGreaterThan(0);
-    expect(references.some((run) => run.text === "Governing Law")).toBe(true);
+  it("shows an answer it cannot match rather than dropping it", () => {
+    // Losing what someone actually said would be worse than an unticked box.
+    const values = emptyValues(document.slug);
+    values.fields.mndaTerm = "Whatever the parties later agree in writing";
+
+    const text = plainText(buildCoverPage(document, values));
+    expect(text).toContain("Whatever the parties later agree in writing");
+  });
+});
+
+describe("assembleAgreement", () => {
+  it("is the cover page followed by the verbatim standard terms", () => {
+    const document = documentFixture("mutual-nda");
+    const values = filledValues(document.slug);
+
+    const cover = buildCoverPage(document, values);
+    const whole = assembleAgreement(document, values);
+
+    expect(whole.blocks.slice(0, cover.length)).toEqual(cover);
+    expect(whole.blocks.length).toBeGreaterThan(cover.length);
   });
 
-  it("carries the CC BY attribution into the assembled document", () => {
-    expect(textOf(assembleDocument(filled()).blocks)).toContain("CC BY 4.0");
-  });
+  it("never substitutes a user's value into the standard terms", () => {
+    // Common Paper directs that modifications belong on the cover page; the
+    // terms below the signature block must read the same for everyone.
+    const document = documentFixture("mutual-nda");
+    const values = filledValues(document.slug);
+    const blocks = assembleAgreement(document, values).blocks;
 
-  it("produces a document for entirely default (mostly blank) values", () => {
-    expect(() => assembleDocument(emptyFormValues())).not.toThrow();
-    expect(assembleDocument(emptyFormValues()).blocks.length).toBeGreaterThan(10);
-  });
+    const signatureAt = blocks.findIndex((block) => block.kind === "signatures");
+    const terms = plainText(blocks.slice(signatureAt + 1));
 
-  it("handles non-Latin company names without mangling them", () => {
-    const values = filled();
-    values.partyOne = { ...values.partyOne, company: "شركة الإسكندرية" };
-    expect(textOf(assembleDocument(values).blocks)).toContain("شركة الإسكندرية");
+    expect(terms).not.toContain("Aardvark Industries");
+    expect(terms).not.toContain("Delaware");
   });
+});
 
-  it("handles a very long purpose without throwing", () => {
-    const values = filled({ purpose: "x".repeat(5000) });
-    expect(() => assembleDocument(values)).not.toThrow();
-  });
+describe("every agreement in the catalog", () => {
+  it.each(allDocuments.map((document) => [document.slug, document] as const))(
+    "%s assembles from nothing without throwing",
+    (_slug, document) => {
+      const blocks = assembleAgreement(document, emptyValues(document.slug)).blocks;
+      expect(blocks.length).toBeGreaterThan(0);
+      expect(blocks[0]).toEqual({ kind: "title", text: document.name });
+    },
+  );
 
-  it("is deterministic for identical input", () => {
-    expect(assembleDocument(filled())).toEqual(assembleDocument(filled()));
-  });
+  it.each(allDocuments.map((document) => [document.slug, document] as const))(
+    "%s assembles fully filled in, with a signature block",
+    (_slug, document) => {
+      const blocks = assembleAgreement(document, filledValues(document.slug)).blocks;
+      expect(blocks.filter((block) => block.kind === "signatures")).toHaveLength(1);
+    },
+  );
+
+  it.each(allDocuments.map((document) => [document.slug, document] as const))(
+    "%s shows every required field on its cover page",
+    (_slug, document) => {
+      const blocks = buildCoverPage(document, emptyValues(document.slug));
+      const shown = headings(blocks);
+
+      for (const field of document.fields.filter((candidate) => candidate.required)) {
+        expect(shown, `${field.label} is required but never rendered`).toContain(
+          field.label,
+        );
+      }
+    },
+  );
 });

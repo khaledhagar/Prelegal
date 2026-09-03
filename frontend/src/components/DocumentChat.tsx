@@ -3,24 +3,25 @@
 /**
  * The conversation that fills in the agreement.
  *
- * This replaced the cover-page form: the user talks, the assistant asks about
- * whatever is still missing, and each reply comes back with the cover page
- * already updated. The transcript lives here; the agreement values live in the
- * parent, because the preview and the PDF read them too.
+ * The transcript and the values both live in the parent: picking a document
+ * from the list beside this panel also speaks into the conversation, so the
+ * messages cannot belong to the chat alone. What is left here is the view and
+ * the input -- everything this component owns is what the user is typing.
  */
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import {
-  ChatError,
-  OPENING_MESSAGE,
-  sendChat,
-  type ChatMessage,
-} from "@/lib/chat";
-import { capturedFields, type NdaFormValues } from "@/lib/form";
+import type { ChatMessage } from "@/lib/chat";
+import { capturedFields } from "@/lib/values";
+import type { DocumentDefinition, DocumentValues } from "@/lib/documents/types";
 
 type Props = {
-  values: NdaFormValues;
-  onValuesChange: (values: NdaFormValues) => void;
+  messages: ChatMessage[];
+  values: DocumentValues;
+  /** Undefined until the assistant or the user settles on an agreement. */
+  document: DocumentDefinition | undefined;
+  pending: boolean;
+  error: string | null;
+  onSend: (message: string) => void;
 };
 
 function Bubble({ message }: { message: ChatMessage }) {
@@ -42,8 +43,14 @@ function Bubble({ message }: { message: ChatMessage }) {
   );
 }
 
-function Captured({ values }: { values: NdaFormValues }) {
-  const rows = capturedFields(values);
+function Captured({
+  document,
+  values,
+}: {
+  document: DocumentDefinition;
+  values: DocumentValues;
+}) {
+  const rows = capturedFields(document, values);
   if (rows.length === 0) return null;
 
   return (
@@ -53,7 +60,10 @@ function Captured({ values }: { values: NdaFormValues }) {
       </summary>
       <dl className="mt-2 space-y-1.5">
         {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[9rem_minmax(0,1fr)] gap-2 text-xs">
+          <div
+            key={row.label}
+            className="grid grid-cols-[9rem_minmax(0,1fr)] gap-2 text-xs"
+          >
             <dt className="text-brand-gray">{row.label}</dt>
             <dd className="break-words text-slate-800 dark:text-slate-200">
               {row.value}
@@ -65,13 +75,15 @@ function Captured({ values }: { values: NdaFormValues }) {
   );
 }
 
-export function NdaChat({ values, onValuesChange }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: OPENING_MESSAGE },
-  ]);
+export function DocumentChat({
+  messages,
+  values,
+  document,
+  pending,
+  error,
+  onSend,
+}: Props) {
   const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const endOfTranscript = useRef<HTMLDivElement>(null);
 
   // Keep the newest message in view. Without this the conversation grows off
@@ -80,38 +92,18 @@ export function NdaChat({ values, onValuesChange }: Props) {
     endOfTranscript.current?.scrollIntoView({ block: "end" });
   }, [messages, pending]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
     if (content.length === 0 || pending) return;
-
-    const next: ChatMessage[] = [...messages, { role: "user", content }];
-    setMessages(next);
     setDraft("");
-    setPending(true);
-    setError(null);
-
-    try {
-      const turn = await sendChat(next, values);
-      setMessages([...next, { role: "assistant", content: turn.reply }]);
-      onValuesChange(turn.fields);
-    } catch (caught) {
-      // The user's message stays in the transcript so they can see what was
-      // sent; the error sits beside it rather than impersonating the assistant.
-      setError(
-        caught instanceof ChatError
-          ? caught.message
-          : "Something went wrong. Please try again.",
-      );
-    } finally {
-      setPending(false);
-    }
+    onSend(content);
   }
 
   return (
     <section
       aria-label="Drafting assistant"
-      className="flex h-[32rem] flex-col rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:h-[calc(100vh-13rem)]"
+      className="flex h-[32rem] flex-col rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:h-[calc(100vh-22rem)]"
     >
       <div
         role="log"
@@ -140,7 +132,7 @@ export function NdaChat({ values, onValuesChange }: Props) {
       </div>
 
       <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-800">
-        <Captured values={values} />
+        {document ? <Captured document={document} values={values} /> : null}
 
         <form onSubmit={handleSubmit} className="flex items-end gap-2">
           <label htmlFor="chat-message" className="sr-only">

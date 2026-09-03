@@ -3,16 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build:template": "node scripts/build-template.mjs",
-    "predev": "npm run build:template",
+    "build:documents": "node scripts/build-documents.mjs",
+    "predev": "npm run build:documents",
     "dev": "next dev",
-    "prebuild": "npm run build:template",
+    "prebuild": "npm run build:documents",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "pretest": "npm run build:template",
+    "pretest": "npm run build:documents",
     "test": "vitest run",
-    "pretest:watch": "npm run build:template",
+    "pretest:watch": "npm run build:documents",
     "test:watch": "vitest"
   },
   "dependencies": {

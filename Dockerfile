@@ -17,10 +17,12 @@ WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci
 
-# `scripts/build-template.mjs` reads the agreement text from the repository's
-# templates/ directory, resolved as a sibling of frontend/. The build fails
-# loudly if it is missing, so the layout here is not incidental.
+# `scripts/build-documents.mjs` reads the agreements and their fields from the
+# repository's templates/, catalog.json and hints.json, resolved as siblings of
+# frontend/. The build fails loudly if any is missing, so the layout here is not
+# incidental.
 COPY templates/ ./templates/
+COPY catalog.json hints.json ./
 COPY frontend/ ./frontend/
 RUN cd frontend && npm run build
 

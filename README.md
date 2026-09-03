@@ -59,7 +59,7 @@ in the browser and is sent whole with each turn; the backend stores none of it.
 
 | Path | What lives there |
 | --- | --- |
-| [`frontend/`](frontend) | Next.js app: sign-in, the signed-in shell, the Mutual NDA creator |
+| [`frontend/`](frontend) | Next.js app: sign-in, the signed-in shell, the agreement drafter |
 | [`backend/`](backend) | FastAPI app: `/api`, the drafting assistant, the database, and serving the above |
 | [`templates/`](templates) | Common Paper agreement text — the source of truth for document content |
 | [`scripts/`](scripts) | Start and stop, per platform |

@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { NdaCreator } from "@/components/NdaCreator";
+import { DocumentCreator } from "@/components/DocumentCreator";
 
 export const metadata: Metadata = {
-  title: "Mutual NDA creator",
+  title: "Agreement drafter",
   description:
-    "Fill in a cover page and download a complete Common Paper Mutual Non-Disclosure Agreement.",
+    "Talk through a Common Paper legal agreement and download it as a PDF.",
 };
 
 /**
- * The platform's landing page. The Mutual NDA creator is the only tool so far,
- * so it is what you get; a document picker belongs with the ticket that adds a
- * second document type.
+ * The platform's landing page. Choosing between the agreements happens inside
+ * the workspace rather than on a route of its own, because working out which
+ * document someone needs is part of the conversation.
  */
 export default function AppHome() {
-  return <NdaCreator />;
+  return <DocumentCreator />;
 }

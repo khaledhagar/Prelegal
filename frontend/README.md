@@ -5,7 +5,7 @@ The Next.js app. Two routes:
 | Route | What it is |
 | --- | --- |
 | `/` | Sign-in — a **placeholder**. See below. |
-| `/app` | The signed-in shell, hosting the Mutual NDA creator |
+| `/app` | The signed-in shell, hosting the agreement drafter |
 
 ## Running it
 
@@ -20,8 +20,9 @@ npm run lint
 npm test
 ```
 
-`predev`, `prebuild` and `pretest` run `scripts/build-template.mjs`
-automatically, so the app always picks up the current agreement text.
+`predev`, `prebuild` and `pretest` run `scripts/build-documents.mjs`
+automatically, so the app always picks up the current agreement text and field
+list.
 
 In production nothing runs this: `npm run build` writes plain static files to
 `out/`, and the backend serves them. `trailingSlash: true` is what makes `/app`
@@ -41,12 +42,19 @@ That is deliberate for now (PL-4) and confined to one module: `useSession`,
 `startSession` and `endSession` are what every component calls, so real
 authentication replaces the inside of that file and nothing else.
 
-## The Mutual NDA creator
+## The agreement drafter
 
-The user fills the agreement in by talking to an assistant (`NdaChat`), not by
-completing a form — PL-5 replaced the cover-page form with a conversation. Each
+The user fills an agreement in by talking to an assistant (`DocumentChat`), not
+by completing a form — PL-5 replaced the cover-page form with a conversation and
+PL-6 widened it from the Mutual NDA to all eleven Common Paper agreements. Each
 turn posts the transcript and the current values to `/api/chat` and gets back a
 reply plus the updated values, so the preview fills in as the conversation goes.
+
+**Which document to draft is part of the conversation.** The assistant works it
+out from what the user says, and says plainly when we cannot draft what they
+asked for — offering the closest agreement we do have. `DocumentPicker` lists
+all eleven beside the chat for anyone who already knows what they want; both
+routes set the same `documentType`.
 
 **Chat needs the backend.** The request is same-origin, so `npm run dev` alone
 has no `/api` to call and the chat reports that it cannot reach the assistant.
@@ -59,20 +67,36 @@ client-side: the assembled agreement and the PDF are built in the browser, and
 the only thing that ever leaves it is the conversation itself.
 
 ```
-templates/mutual-nda.md              (repository, single source of truth)
+templates/*.md + catalog.json + hints.json   (repository, source of truth)
         │
-        │  scripts/build-template.mjs   -- inlines markdown at build time
-        ▼
-src/generated/mnda-template.ts       (generated, git-ignored)
-        │
+        │  scripts/build-documents.mjs  -- reads each template's own
+        │                                  <span class="..._link"> variables,
+        │                                  joins them to hints.json
+        ├─────────────────────────────────────────┐
+        ▼                                         ▼
+src/generated/documents.ts              backend/app/chat/documents.json
+  (generated, git-ignored)                (generated, committed -- the
+        │                                  runtime image has no Node)
         │  src/lib/markdown.ts          -- markdown -> blocks
         │  src/lib/assemble.ts          -- + cover page values from the chat
         ▼
    document model  (src/lib/document.ts)
         │
-        ├──> src/components/NdaPreview.tsx   -- renders to HTML
-        └──> src/pdf/NdaDocument.tsx         -- renders to PDF
+        ├──> src/components/AgreementPreview.tsx  -- renders to HTML
+        └──> src/pdf/AgreementDocument.tsx        -- renders to PDF
 ```
+
+**The field list is read out of the agreements, not written by hand.** Common
+Paper's templates name every value a user must supply — `<span
+class="keyterms_link">Governing Law</span>` and its four siblings — so adding a
+template to `templates/` and a row to `catalog.json` is all it takes to support
+a new document. `hints.json` supplies the human half: the plain-language
+question to ask for each field. A field with no hint still works; it just reads
+like a form until someone writes a line for it.
+
+One script does that parsing, once, for both halves of the app. A second parser
+in Python would drift, and the failure mode of that drift is the assistant
+filling in a field name nothing renders.
 
 **One model, two renderers.** The preview and the PDF walk the same document
 model, so what you see on screen is what lands in the file. Each renderer's

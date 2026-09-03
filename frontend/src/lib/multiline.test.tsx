@@ -15,10 +15,28 @@
 import { describe, expect, it } from "vitest";
 import { renderToBuffer } from "@react-pdf/renderer";
 import zlib from "node:zlib";
-import { NdaPdfDocument } from "@/pdf/NdaDocument";
-import { assembleDocument, buildCoverPage } from "./assemble";
+import { AgreementPdfDocument } from "@/pdf/AgreementDocument";
+import { assembleAgreement, buildCoverPage } from "./assemble";
 import { assertNever, splitParagraphs } from "./document";
-import { filledFormValues as filled } from "./fixtures";
+import { documentFixture, filledValues } from "./fixtures";
+
+const mnda = documentFixture("mutual-nda");
+
+/** The Mutual NDA with one cover-page field overridden. */
+function filled(overrides: Record<string, string>) {
+  const values = filledValues("mutual-nda");
+  return { ...values, fields: { ...values.fields, ...overrides } };
+}
+
+const cover = (overrides: Record<string, string>) =>
+  buildCoverPage(mnda, filled(overrides));
+
+const pdfFor = (overrides: Record<string, string>) => (
+  <AgreementPdfDocument
+    document={assembleAgreement(mnda, filled(overrides))}
+    name={mnda.name}
+  />
+);
 
 const MULTILINE = "1. Section 5 is deleted.\n2. Confidentiality is 3 years.";
 
@@ -89,25 +107,24 @@ describe("splitParagraphs", () => {
 
 describe("multi-line modifications", () => {
   it("becomes one block per line, not one run-on block", () => {
-    const blocks = buildCoverPage(filled({ modifications: MULTILINE }));
+    const blocks = cover({ mndaModifications: MULTILINE });
     const index = blocks.findIndex(
       (b) => b.kind === "heading" && b.text === "MNDA Modifications",
     );
     expect(index).toBeGreaterThanOrEqual(0);
-    expect(blocks[index + 1]).toMatchObject({
+    // heading, then the field's caption, then one paragraph per line.
+    expect(blocks[index + 2]).toMatchObject({
       kind: "paragraph",
       content: [{ text: "1. Section 5 is deleted." }],
     });
-    expect(blocks[index + 2]).toMatchObject({
+    expect(blocks[index + 3]).toMatchObject({
       kind: "paragraph",
       content: [{ text: "2. Confidentiality is 3 years." }],
     });
   });
 
   it("keeps the lines separated in the PDF", async () => {
-    const pdf = await renderToBuffer(
-      <NdaPdfDocument document={assembleDocument(filled({ modifications: MULTILINE }))} />,
-    );
+    const pdf = await renderToBuffer(pdfFor({ mndaModifications: MULTILINE }));
     const text = extractText(pdf);
     expect(text).toContain("1. Section 5 is deleted.");
     expect(text).toContain("2. Confidentiality is 3 years.");
@@ -117,9 +134,7 @@ describe("multi-line modifications", () => {
     // extraction concatenates runs with no separator. (BT counts drawn lines,
     // not paragraphs, so assert the direction rather than an exact delta.)
     const oneLine = await renderToBuffer(
-      <NdaPdfDocument
-        document={assembleDocument(filled({ modifications: "1. Section 5 is deleted." }))}
-      />,
+      pdfFor({ mndaModifications: "1. Section 5 is deleted." }),
     );
     expect(countTextObjects(pdf)).toBeGreaterThan(countTextObjects(oneLine));
   }, 60_000);
@@ -127,7 +142,7 @@ describe("multi-line modifications", () => {
 
 describe("multi-line purpose", () => {
   it("becomes one block per line", () => {
-    const blocks = buildCoverPage(filled({ purpose: "First reason.\nSecond reason." }));
+    const blocks = cover({ purpose: "First reason.\nSecond reason." });
     const index = blocks.findIndex((b) => b.kind === "heading" && b.text === "Purpose");
     expect(blocks[index + 2]).toMatchObject({
       kind: "paragraph",
@@ -140,24 +155,20 @@ describe("multi-line purpose", () => {
   });
 
   it("still shows a placeholder when left blank", () => {
-    const blocks = buildCoverPage(filled({ purpose: "   " }));
+    const blocks = cover({ purpose: "   " });
     const index = blocks.findIndex((b) => b.kind === "heading" && b.text === "Purpose");
     expect(blocks[index + 2]).toMatchObject({
       kind: "paragraph",
-      content: [{ kind: "value", filled: false, text: "[Describe the purpose]" }],
+      content: [{ kind: "value", filled: false, text: "[Purpose]" }],
     });
   });
 
   it("keeps the lines separated in the PDF", async () => {
     const twoLines = await renderToBuffer(
-      <NdaPdfDocument
-        document={assembleDocument(filled({ purpose: "First reason.\nSecond reason." }))}
-      />,
+      pdfFor({ purpose: "First reason.\nSecond reason." }),
     );
     const oneLine = await renderToBuffer(
-      <NdaPdfDocument
-        document={assembleDocument(filled({ purpose: "First reason. Second reason." }))}
-      />,
+      pdfFor({ purpose: "First reason. Second reason." }),
     );
     expect(extractText(twoLines)).toContain("First reason.");
     expect(extractText(twoLines)).toContain("Second reason.");
