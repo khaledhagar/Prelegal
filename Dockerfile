@@ -52,8 +52,13 @@ COPY --from=frontend /build/frontend/out /app/frontend/out
 ENV PRELEGAL_DATABASE_PATH=/data/prelegal.db \
     PRELEGAL_STATIC_DIR=/app/frontend/out
 
-# The database is rebuilt on every startup, so /data holds nothing that needs to
-# outlive the container -- it just has to be writable by a non-root user.
+# /data holds the database, and it is now the only thing in the image worth
+# keeping: accounts and saved documents live there and survive a restart. Mount
+# a named volume over it (`--volume prelegal-data:/data`, which the start
+# scripts do) or removing the container takes the data with it. Declaring
+# VOLUME here is deliberately avoided -- it would silently create a fresh
+# anonymous volume for anyone who runs the image without `--volume`, which
+# looks like persistence right up until they wonder where their account went.
 RUN useradd --system --create-home prelegal \
     && mkdir -p /data \
     && chown -R prelegal:prelegal /data

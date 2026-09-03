@@ -215,12 +215,16 @@ describe("the screen itself", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("says that accounts do not survive a restart", () => {
-    // The database is rebuilt on every start. Better said here than discovered
-    // when someone comes back to find their documents gone.
+  it("does not warn that accounts are temporary, because they are not", () => {
+    // This screen used to carry a demo notice, correctly, while the database
+    // was rebuilt on every start. Storage is durable now, so the notice would
+    // be a lie -- and telling someone their saved contract is about to vanish
+    // is not a harmless thing to leave lying around.
     render(<SignInPage />);
 
-    expect(screen.getByText(/until the server restarts/i)).toBeInTheDocument();
+    expect(screen.queryByText(/until the server restarts/i)).toBeNull();
+    expect(screen.queryByText(/demo deployment/i)).toBeNull();
+    expect(screen.queryByText(/wiped/i)).toBeNull();
   });
 
   it("states that the product produces drafts, not legal advice", () => {

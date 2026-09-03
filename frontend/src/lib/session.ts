@@ -130,9 +130,9 @@ export async function signOut(): Promise<void> {
 /**
  * Records that the server has rejected our session.
  *
- * Called when a request comes back 401 mid-use, which means the session expired
- * or the server restarted and took the database with it. Without this the app
- * would keep showing a signed-in header over an API that refuses everything.
+ * Called when a request comes back 401 mid-use -- the session was signed out
+ * elsewhere, or the row is simply gone. Without this the app would keep showing
+ * a signed-in header over an API that refuses everything.
  */
 export function forgetSession(): void {
   if (session !== null) set(null);

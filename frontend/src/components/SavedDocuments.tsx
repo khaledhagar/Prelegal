@@ -37,7 +37,7 @@ export function SavedDocuments() {
     routerRef.current = router;
   }, [router]);
 
-  /** A lost session means the server restarted or the cookie expired. */
+  /** A lost session means it was signed out elsewhere, or the cookie expired. */
   const handleAuthLoss = useCallback(() => {
     forgetSession();
     routerRef.current.replace("/");
@@ -167,7 +167,7 @@ export function SavedDocuments() {
 
         <p className="mt-8 rounded-lg border border-brand-yellow/40 bg-brand-yellow/10 px-4 py-3 text-xs leading-relaxed text-brand-navy dark:text-brand-yellow">
           Saved documents are drafts and are subject to review by a qualified
-          lawyer. They live only until the server restarts.
+          lawyer before anyone signs them.
         </p>
       </main>
     </>
