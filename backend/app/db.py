@@ -1,11 +1,13 @@
 """SQLite access.
 
-The database is explicitly temporary: it is deleted and rebuilt from
-`schema.sql` every time the app starts, which is what the technical design asks
-for while there is nothing worth keeping. That is also why there is no ORM and
-no migration tool here -- neither earns its weight against a file that never
-survives a restart. When the data becomes durable, this module is the seam to
-replace.
+The database is durable: it is created if it is missing and otherwise left
+exactly as it was found, so accounts and saved drafts survive a restart. The
+schema is applied every startup and every statement in it is `IF NOT EXISTS`,
+which makes that safe to repeat.
+
+There is still no ORM and no migration tool. `schema.sql` can add tables and
+indexes to an existing database but cannot alter or drop what is already there
+-- see the note at the top of that file for where this has to grow.
 """
 
 from __future__ import annotations
@@ -48,13 +50,16 @@ def transaction(database_path: Path) -> Iterator[sqlite3.Connection]:
 
 
 def init_db(database_path: Path) -> None:
-    """Recreates the database from scratch, discarding anything already there."""
+    """
+    Makes sure the database exists and has the schema, keeping what is there.
+
+    Called on every startup, so most of the time this finds a database that is
+    already correct and does nothing. Nothing here deletes: the `-wal` and
+    `-shm` siblings in particular hold committed rows that SQLite has not yet
+    folded into the main file, so removing them would discard exactly the
+    writes made just before the process stopped.
+    """
     database_path.parent.mkdir(parents=True, exist_ok=True)
-    database_path.unlink(missing_ok=True)
-    # SQLite keeps the write-ahead log and shared memory in sibling files;
-    # leaving them behind would reintroduce state the new database never had.
-    for suffix in ("-wal", "-shm"):
-        database_path.with_name(database_path.name + suffix).unlink(missing_ok=True)
 
     with transaction(database_path) as connection:
         connection.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))

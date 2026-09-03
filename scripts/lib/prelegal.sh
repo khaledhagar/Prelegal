@@ -12,6 +12,10 @@ set -eu
 IMAGE_NAME="prelegal:local"
 CONTAINER_NAME="prelegal"
 PORT="${PRELEGAL_PORT:-8000}"
+# Accounts and saved documents live here. A *named* volume, so that removing
+# the container -- which `stop` does, and which every `start` does first --
+# leaves the data behind. Deleting it is `docker volume rm prelegal-data`.
+DATA_VOLUME="${PRELEGAL_DATA_VOLUME:-prelegal-data}"
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
@@ -63,8 +67,8 @@ start() {
     echo "Building $IMAGE_NAME ..."
     docker build --tag "$IMAGE_NAME" "$REPO_ROOT"
 
-    # Replace any previous container. The database is rebuilt on startup anyway,
-    # so there is nothing here worth preserving between runs.
+    # Replace any previous container. Safe because the database is on a named
+    # volume rather than inside the container, so it outlives this.
     docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
     # The image deliberately ships without credentials, so the assistant's key
@@ -84,6 +88,7 @@ start() {
     docker run --detach \
         --name "$CONTAINER_NAME" \
         --publish "$PORT:8000" \
+        --volume "$DATA_VOLUME:/data" \
         "$@" \
         "$IMAGE_NAME" >/dev/null
 

@@ -65,9 +65,15 @@ in the browser and is sent whole with each turn; the backend stores none of it.
 | [`scripts/`](scripts) | Start and stop, per platform |
 | `catalog.json` | The document types the product intends to support |
 
-**The database is temporary by design.** It is deleted and rebuilt from
-`backend/app/schema.sql` every time the app starts. Nothing in it survives a
-restart, which is why there are no migrations yet.
+**The database is durable.** `backend/app/schema.sql` is applied on every
+start and creates only what is missing, so accounts and saved documents survive
+a restart. In Docker it lives on the `prelegal-data` named volume, which the
+start scripts mount and which outlives the container; `docker volume rm
+prelegal-data` is how you deliberately throw it away.
+
+There is still no migration tool. The schema can add tables and indexes to a
+database that already exists, but it cannot alter or drop what is already
+there -- the first change that needs to is where real migrations begin.
 
 ## Developing
 

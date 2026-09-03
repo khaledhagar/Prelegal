@@ -99,17 +99,19 @@ All three routes are now checked clean from 320px to 1440px.
 | Document registry | `scripts/build-documents.mjs` derives each agreement's fields from its own template, joins `hints.json`, emits both halves | PL-6 |
 | AI chat | LiteLLM → OpenRouter → `gpt-oss-120b` on Cerebras, Structured Outputs. One call per turn, backend-only, stateless | PL-5, PL-6 |
 | `backend/` | uv + FastAPI. `/api/health`, `/api/chat`, `/api/documents`, `/api/auth/*`, `/api/drafts`; also serves the frontend export | PL-4, PL-5, PL-6, PL-7 |
-| Database | SQLite: `users`, `sessions`, `drafts`. Deleted and rebuilt from `backend/app/schema.sql` on every startup | PL-4, PL-7 |
+| Database | SQLite: `users`, `sessions`, `drafts`. Durable — `backend/app/schema.sql` is applied on every start and creates only what is missing. On the `prelegal-data` Docker volume | PL-4, PL-7, durable-storage |
 | Packaging | One Docker image, `scripts/start-*` / `stop-*` for mac, linux and windows | PL-4 |
 | Tests | 334 frontend (vitest) + 154 backend (pytest) | PL-3, PL-4, PL-5, PL-6, PL-7 |
 
 ### Not built yet
 
-- **Durable storage.** The database is still deleted and rebuilt on every
-  startup, so accounts and saved documents last only as long as the server run.
-  The sign-in screen says so rather than letting anyone discover it.
+- **Schema migrations.** `schema.sql` can add a table or an index to a database
+  that already exists, but it cannot alter or drop one — SQLite skips the
+  `CREATE TABLE` and the old shape survives. Nothing warns you. The first change
+  that has to alter an existing table is where this needs a real migration tool.
 - **Password reset, email verification, rate limiting.** None exist. There is
-  nothing to stop repeated sign-in attempts against a known address.
+  nothing to stop repeated sign-in attempts against a known address — and now
+  that accounts persist, that matters more than it did.
 - **Editing fields by hand.** PL-5 removed the cover-page form; the only way to
   change a value is to tell the assistant.
 - **Several statements of work on one PSA.** A Professional Services Agreement
@@ -174,6 +176,23 @@ All three routes are now checked clean from 320px to 1440px.
   fixed height again is how both buttons became unclickable on any window
   shorter than about 1145px. jsdom has no layout, so the 334 frontend tests
   cannot catch this — it only shows up in a real browser.
+
+- `init_db` runs on every startup and must never delete. It used to unlink the
+  database and its `-wal`/`-shm` siblings; the WAL in particular holds committed
+  rows SQLite has not yet folded into the main file, so removing it discards
+  exactly the writes made just before the process stopped. Every statement in
+  `schema.sql` is `IF NOT EXISTS` so re-applying it is a no-op — adding a plain
+  `CREATE TABLE` breaks startup on any existing database.
+
+- The Docker image keeps the database at `/data/prelegal.db`, and the start
+  scripts mount the `prelegal-data` **named** volume over it. Named, because
+  `start` removes the previous container before it runs a new one — an
+  anonymous volume or a bare container directory would be thrown away every
+  time. The Dockerfile deliberately does *not* declare `VOLUME /data`: that
+  would hand anyone running the image without `--volume` a fresh anonymous
+  volume that looks like persistence until they wonder where their account
+  went. `scripts/lib/prelegal.sh` and `scripts/lib/Prelegal.ps1` both do this
+  and have to stay in step.
 
 - The header bar in `AppShell` carries `flex-wrap`, and the account block is
   allowed to drop to a second line. The wordmark, both nav links and that block

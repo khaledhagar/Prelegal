@@ -70,7 +70,7 @@ export function DocumentCreator() {
     routerRef.current = router;
   }, [router]);
 
-  /** A lost session means the server restarted or the cookie expired. */
+  /** A lost session means it was signed out elsewhere, or the cookie expired. */
   const handleAuthLoss = useCallback(() => {
     forgetSession();
     routerRef.current.replace("/");

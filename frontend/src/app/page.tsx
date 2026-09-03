@@ -218,14 +218,6 @@ export default function SignInPage() {
                   : "Sign in"}
             </button>
           </form>
-
-          {/* The database is rebuilt on every server start, so an account is
-              real but not durable. Better said here than discovered. */}
-          <p className="mt-6 rounded-lg border border-brand-yellow/40 bg-brand-yellow/10 px-3 py-2 text-xs leading-relaxed text-brand-navy dark:text-brand-yellow">
-            This is a demo deployment. Your account and saved documents live
-            only until the server restarts, and everything is wiped when it
-            does.
-          </p>
         </div>
       </main>
     </div>

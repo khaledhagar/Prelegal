@@ -9,6 +9,10 @@ $ErrorActionPreference = 'Stop'
 $script:ImageName = 'prelegal:local'
 $script:ContainerName = 'prelegal'
 $script:Port = if ($env:PRELEGAL_PORT) { $env:PRELEGAL_PORT } else { '8000' }
+# Accounts and saved documents live here. A *named* volume, so that removing
+# the container -- which Stop-Prelegal does, and which every start does first --
+# leaves the data behind. Deleting it is `docker volume rm prelegal-data`.
+$script:DataVolume = if ($env:PRELEGAL_DATA_VOLUME) { $env:PRELEGAL_DATA_VOLUME } else { 'prelegal-data' }
 $script:RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 function Assert-Docker {
@@ -59,8 +63,8 @@ function Start-Prelegal {
     docker build --tag $script:ImageName $script:RepoRoot
     if ($LASTEXITCODE -ne 0) { throw 'docker build failed.' }
 
-    # Replace any previous container. The database is rebuilt on startup anyway,
-    # so there is nothing here worth preserving between runs.
+    # Replace any previous container. Safe because the database is on a named
+    # volume rather than inside the container, so it outlives this.
     docker rm --force $script:ContainerName *> $null
 
     # The image deliberately ships without credentials, so the assistant's key
@@ -80,7 +84,7 @@ function Start-Prelegal {
     }
 
     Write-Host "Starting $script:ContainerName on port $script:Port ..."
-    docker run --detach --name $script:ContainerName --publish "$($script:Port):8000" @envArgs $script:ImageName | Out-Null
+    docker run --detach --name $script:ContainerName --publish "$($script:Port):8000" --volume "$($script:DataVolume):/data" @envArgs $script:ImageName | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'docker run failed.' }
 
     if (Wait-UntilReady) {

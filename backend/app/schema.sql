@@ -1,12 +1,16 @@
 -- Prelegal schema.
 --
--- Recreated from scratch on every startup (see app/db.py), so there are no
--- migrations and nothing here is expected to survive a restart. Accounts and
--- saved drafts go with it: PL-7 asks for real registration, not durable
--- storage. When the database becomes durable this file is where migrations
--- start from.
+-- Applied on every startup against a database that usually already exists, so
+-- every statement here is `IF NOT EXISTS` and running the file twice is a
+-- no-op. That is what makes it safe to keep the data (see app/db.py).
+--
+-- There is still no migration tool. This file can only *add* things: changing
+-- or dropping a column will not reach a database that already has the old one,
+-- because SQLite will simply skip the `CREATE TABLE`. The first change that
+-- needs to alter an existing table is the point where this grows into real
+-- versioned migrations -- do not work around it by deleting the file.
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
     -- NOCASE so "Ada@Acme.com" and "ada@acme.com" are one account, and the
     -- unique index enforces that rather than leaving it to the caller.
@@ -22,7 +26,7 @@ CREATE TABLE users (
 -- The key is a SHA-256 of the token, never the token itself, so reading this
 -- table gives you nothing you can present as a cookie. Deleting a row is what
 -- makes signing out real, which a self-contained signed token could not offer.
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -34,7 +38,7 @@ CREATE TABLE sessions (
 -- preview pass around. Storing the answers rather than a rendered document
 -- means reopening a draft gives back a live, editable agreement -- and that a
 -- change to the templates reaches work already saved.
-CREATE TABLE drafts (
+CREATE TABLE IF NOT EXISTS drafts (
     id            INTEGER PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     document_type TEXT NOT NULL,
@@ -45,4 +49,4 @@ CREATE TABLE drafts (
 );
 
 -- Every read is "this user's drafts, newest first".
-CREATE INDEX drafts_by_user ON drafts (user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS drafts_by_user ON drafts (user_id, updated_at DESC);
