@@ -11,9 +11,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/Wordmark";
-import { signIn, signUp, useSession } from "@/lib/session";
+import {
+  requestPasswordReset,
+  signIn,
+  signUp,
+  useSession,
+} from "@/lib/session";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot";
 
 const fieldClass =
   "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink " +
@@ -32,6 +37,9 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  //: What the server said about a reset request. Deliberately not an error --
+  //: it is the same sentence whether or not the address has an account.
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (hydrated && session) router.replace("/app");
@@ -40,6 +48,7 @@ export default function SignInPage() {
   function switchTo(next: Mode) {
     setMode(next);
     setError(null);
+    setNotice(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -48,7 +57,12 @@ export default function SignInPage() {
 
     setPending(true);
     setError(null);
+    setNotice(null);
     try {
+      if (mode === "forgot") {
+        setNotice(await requestPasswordReset(email.trim()));
+        return;
+      }
       if (mode === "signup") {
         await signUp({ name: name.trim(), email: email.trim(), password });
       } else {
@@ -65,6 +79,7 @@ export default function SignInPage() {
   }
 
   const isSignUp = mode === "signup";
+  const isForgot = mode === "forgot";
 
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
@@ -110,14 +125,29 @@ export default function SignInPage() {
       <main className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <h2 className="text-2xl font-semibold tracking-tight text-brand-navy dark:text-white">
-            {isSignUp ? "Create your account" : "Welcome back"}
+            {isForgot
+              ? "Reset your password"
+              : isSignUp
+                ? "Create your account"
+                : "Welcome back"}
           </h2>
           <p className="mt-1.5 text-sm text-ink-soft">
-            {isSignUp
-              ? "A name, an email and a password is all it takes."
-              : "Sign in to pick up where you left off."}
+            {isForgot
+              ? "Give us the address on the account and we will create a reset link for it."
+              : isSignUp
+                ? "A name, an email and a password is all it takes."
+                : "Sign in to pick up where you left off."}
           </p>
 
+          {isForgot ? (
+            <button
+              type="button"
+              onClick={() => switchTo("signin")}
+              className="mt-6 text-sm font-medium text-brand-blue underline underline-offset-2"
+            >
+              Back to sign in
+            </button>
+          ) : (
           <div
             role="tablist"
             aria-label="Sign in or create an account"
@@ -146,6 +176,7 @@ export default function SignInPage() {
               </button>
             ))}
           </div>
+          )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
             {isSignUp ? (
@@ -181,21 +212,43 @@ export default function SignInPage() {
               />
             </div>
 
-            <div>
-              <label htmlFor="signin-password" className={labelClass}>
-                Password
-              </label>
-              <input
-                id="signin-password"
-                type="password"
-                className={`mt-1.5 ${fieldClass}`}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-                placeholder={isSignUp ? "At least 8 characters" : "••••••••"}
-                required
-              />
-            </div>
+            {isForgot ? null : (
+              <div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <label htmlFor="signin-password" className={labelClass}>
+                    Password
+                  </label>
+                  {isSignUp ? null : (
+                    <button
+                      type="button"
+                      onClick={() => switchTo("forgot")}
+                      className="text-xs font-medium text-brand-blue underline underline-offset-2"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="signin-password"
+                  type="password"
+                  className={`mt-1.5 ${fieldClass}`}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  placeholder={isSignUp ? "At least 8 characters" : "••••••••"}
+                  required
+                />
+              </div>
+            )}
+
+            {notice ? (
+              <p
+                role="status"
+                className="rounded-lg border border-brand-blue/40 bg-brand-blue/10 px-3 py-2 text-sm leading-relaxed text-ink"
+              >
+                {notice}
+              </p>
+            ) : null}
 
             {error ? (
               <p
@@ -213,9 +266,11 @@ export default function SignInPage() {
             >
               {pending
                 ? "One moment…"
-                : isSignUp
-                  ? "Create account"
-                  : "Sign in"}
+                : isForgot
+                  ? "Create a reset link"
+                  : isSignUp
+                    ? "Create account"
+                    : "Sign in"}
             </button>
           </form>
         </div>

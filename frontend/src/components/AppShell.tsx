@@ -19,6 +19,7 @@ import { initials, signOut, useSession } from "@/lib/session";
 const NAV = [
   { href: "/app", label: "Draft" },
   { href: "/app/documents", label: "My documents" },
+  { href: "/app/account", label: "Account" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {

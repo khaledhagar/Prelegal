@@ -65,6 +65,30 @@ def resolve(connection: sqlite3.Connection, token: str | None) -> User | None:
     return User(id=row["id"], email=row["email"], name=row["name"]) if row else None
 
 
+def revoke_all_for_user(
+    connection: sqlite3.Connection, user_id: int, *, keep: str | None = None
+) -> None:
+    """
+    Ends every session this user has, optionally sparing one.
+
+    Used when the password changes. Changing a password is how someone reacts
+    to a session they no longer trust, so leaving the others signed in would
+    defeat the point -- but signing them out of the browser they are holding
+    would read as a failure, hence `keep`.
+
+    Does not commit. It belongs in the same transaction as the password change
+    that prompted it -- a new password with the old sessions still live, or the
+    reverse, is worse than either half failing outright.
+    """
+    if keep:
+        connection.execute(
+            "DELETE FROM sessions WHERE user_id = ? AND token_hash != ?",
+            (user_id, _fingerprint(keep)),
+        )
+    else:
+        connection.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
 def revoke(connection: sqlite3.Connection, token: str | None) -> None:
     """Ends one session. Silent when the token is already gone -- signing out
     twice is not an error worth telling anyone about."""

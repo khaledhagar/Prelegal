@@ -92,8 +92,8 @@ All three routes are now checked clean from 320px to 1440px.
 | Area | State | Ticket |
 | --- | --- | --- |
 | `templates/` | 12 markdown files covering 11 agreements — the Mutual NDA is split into Standard Terms + Cover Page | PL-2 |
-| `frontend/` | Next.js 16, static export. `/` sign-in & sign-up, `/app` drafter, `/app/documents` saved work | PL-3, PL-4, PL-7 |
-| Accounts | Real registration and sign-in. scrypt password hashing, httpOnly session cookie, server-side sessions | PL-7 |
+| `frontend/` | Next.js 16, static export. `/` sign-in, sign-up & forgot-password, `/reset` new password from a link, `/app` drafter, `/app/documents` saved work, `/app/account` change password | PL-3, PL-4, PL-7, password-management |
+| Accounts | Real registration and sign-in. scrypt password hashing, httpOnly session cookie, server-side sessions. Change password, and reset a forgotten one from a single-use token | PL-7, password-management |
 | Saved documents | Explicit "Save to my documents"; reopen a draft back into the workspace | PL-7 |
 | Agreement drafter | All 11 agreements. Freeform AI chat → live preview → downloadable PDF, plus a picker | PL-3, PL-5, PL-6 |
 | Document registry | `scripts/build-documents.mjs` derives each agreement's fields from its own template, joins `hints.json`, emits both halves | PL-6 |
@@ -101,7 +101,7 @@ All three routes are now checked clean from 320px to 1440px.
 | `backend/` | uv + FastAPI. `/api/health`, `/api/chat`, `/api/documents`, `/api/auth/*`, `/api/drafts`; also serves the frontend export | PL-4, PL-5, PL-6, PL-7 |
 | Database | SQLite: `users`, `sessions`, `drafts`. Durable — `backend/app/schema.sql` is applied on every start and creates only what is missing. On the `prelegal-data` Docker volume | PL-4, PL-7, durable-storage |
 | Packaging | One Docker image, `scripts/start-*` / `stop-*` for mac, linux and windows | PL-4 |
-| Tests | 334 frontend (vitest) + 154 backend (pytest) | PL-3, PL-4, PL-5, PL-6, PL-7 |
+| Tests | 360 frontend (vitest) + 174 backend (pytest) | PL-3, PL-4, PL-5, PL-6, PL-7, password-management |
 
 ### Not built yet
 
@@ -109,9 +109,15 @@ All three routes are now checked clean from 320px to 1440px.
   that already exists, but it cannot alter or drop one — SQLite skips the
   `CREATE TABLE` and the old shape survives. Nothing warns you. The first change
   that has to alter an existing table is where this needs a real migration tool.
-- **Password reset, email verification, rate limiting.** None exist. There is
-  nothing to stop repeated sign-in attempts against a known address — and now
-  that accounts persist, that matters more than it did.
+- **Sending email.** There is no mail path at all, which is why a reset link
+  goes to the server log for an operator to pass on rather than to an inbox.
+  The token itself is real; only the delivery is manual. `app/api/auth.py`'s
+  `forgot_password` is the one place to change when mail arrives.
+- **Email verification, and rate limiting.** Neither exists. Nothing stops
+  repeated sign-in attempts against a known address, and nothing stops repeated
+  reset requests — which now matters more, because accounts persist and a
+  reset endpoint is a nice thing to hammer. An address is still never confirmed
+  to belong to the person who typed it.
 - **Editing fields by hand.** PL-5 removed the cover-page form; the only way to
   change a value is to tell the assistant.
 - **Several statements of work on one PSA.** A Professional Services Agreement
@@ -176,6 +182,26 @@ All three routes are now checked clean from 320px to 1440px.
   fixed height again is how both buttons became unclickable on any window
   shorter than about 1145px. jsdom has no layout, so the 334 frontend tests
   cannot catch this — it only shows up in a real browser.
+
+- A password reset token is a credential that outranks the password, so it is
+  handled like the session token: 32 random bytes, stored only as its SHA-256,
+  and gone the moment it is used. `resets.redeem` deletes **every** outstanding
+  token for that user, not just the one presented — two requests in a row
+  otherwise leave the older link live after the newer one has already changed
+  the password. Expired, spent and never-real are one answer on purpose.
+
+- `/api/auth/forgot` must keep answering identically for an address that has an
+  account and one that does not — same status, same body. It is the only reason
+  that endpoint is not a way to enumerate who has an account here, which is the
+  thing `/api/auth/login` already refuses to leak. The reset link is written to
+  the **server log**, never to the response.
+
+- Changing a password requires the current one even though a session already
+  proves somebody is signed in. It proves *somebody* is, not that it is the
+  owner; without it a browser left open is enough to take an account for good.
+  Both changing and resetting revoke sessions — changing spares the browser
+  doing it, resetting spares none, because whoever forced the reset should not
+  still be signed in afterwards.
 
 - `init_db` runs on every startup and must never delete. It used to unlink the
   database and its `-wal`/`-shm` siblings; the WAL in particular holds committed

@@ -50,3 +50,17 @@ CREATE TABLE IF NOT EXISTS drafts (
 
 -- Every read is "this user's drafts, newest first".
 CREATE INDEX IF NOT EXISTS drafts_by_user ON drafts (user_id, updated_at DESC);
+
+-- An outstanding "I forgot my password" request.
+--
+-- Same rule as `sessions`: the key is a SHA-256 of the token, never the token,
+-- so reading this table yields nothing anyone could redeem. Rows are deleted
+-- when used rather than flagged, which is what makes a link single-use, and
+-- every row for a user goes when any one of them is redeemed -- an older link
+-- left working would outlive the reset it was superseded by.
+CREATE TABLE IF NOT EXISTS password_resets (
+    token_hash TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
+);

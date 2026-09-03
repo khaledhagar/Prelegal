@@ -24,6 +24,24 @@ class LoginRequest(Wire):
     password: str = Field(max_length=1024)
 
 
+class ChangePasswordRequest(Wire):
+    """Changing a password from inside the app."""
+
+    #: Required even though the session already proves *someone* is signed in.
+    #: A borrowed session should not be enough to take the account for good.
+    current_password: str = Field(max_length=1024)
+    new_password: str = Field(max_length=1024)
+
+
+class ForgotPasswordRequest(Wire):
+    email: str = Field(max_length=254)
+
+
+class ResetPasswordRequest(Wire):
+    token: str = Field(min_length=1, max_length=512)
+    new_password: str = Field(max_length=1024)
+
+
 class AccountResponse(Wire):
     """Who is signed in. Never carries the password hash or the token."""
 

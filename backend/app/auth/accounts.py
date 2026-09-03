@@ -64,3 +64,34 @@ def authenticate(
         return None
 
     return User(id=row["id"], email=row["email"], name=row["name"])
+
+
+def set_password(connection: sqlite3.Connection, user_id: int, password: str) -> None:
+    """
+    Replaces someone's password.
+
+    Hashes before touching the database, so a password the rules reject never
+    reaches a row. Does not commit: the caller owns the transaction, because
+    this always happens alongside revoking sessions.
+    """
+    connection.execute(
+        "UPDATE users SET password_hash = ? WHERE id = ?",
+        (hash_password(password), user_id),
+    )
+
+
+def find_by_email(connection: sqlite3.Connection, email: str) -> User | None:
+    """The account for an address, or None. Used by the reset request, which
+    must behave the same either way -- see `app.api.auth.forgot_password`."""
+    row = connection.execute(
+        "SELECT id, email, name FROM users WHERE email = ?",
+        (normalise_email(email),),
+    ).fetchone()
+    return None if row is None else User(id=row["id"], email=row["email"], name=row["name"])
+
+
+def find_by_id(connection: sqlite3.Connection, user_id: int) -> User | None:
+    row = connection.execute(
+        "SELECT id, email, name FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    return None if row is None else User(id=row["id"], email=row["email"], name=row["name"])

@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 const replace = vi.fn();
 const signIn = vi.fn();
 const signUp = vi.fn();
+const requestPasswordReset = vi.fn();
 let sessionState: { session: unknown; hydrated: boolean } = {
   session: null,
   hydrated: true,
@@ -28,6 +29,7 @@ vi.mock("@/lib/session", async (importOriginal) => {
     useSession: () => sessionState,
     signIn: (...args: unknown[]) => signIn(...args),
     signUp: (...args: unknown[]) => signUp(...args),
+    requestPasswordReset: (...args: unknown[]) => requestPasswordReset(...args),
   };
 });
 
@@ -42,6 +44,11 @@ beforeEach(() => {
   signIn.mockReset().mockResolvedValue({ id: 1, name: "Ada", email: "a@b.com" });
   signUp.mockReset().mockResolvedValue({ id: 1, name: "Ada", email: "a@b.com" });
   sessionState = { session: null, hydrated: true };
+  requestPasswordReset
+    .mockReset()
+    .mockResolvedValue(
+      "If that address has an account, a password reset link has been created.",
+    );
 });
 
 describe("signing in", () => {
@@ -230,5 +237,77 @@ describe("the screen itself", () => {
   it("states that the product produces drafts, not legal advice", () => {
     render(<SignInPage />);
     expect(screen.getByText(/not legal advice/i)).toBeInTheDocument();
+  });
+});
+
+
+describe("forgetting a password", () => {
+  async function openTheResetForm() {
+    render(<SignInPage />);
+    await userEvent.click(screen.getByRole("button", { name: /forgot password/i }));
+  }
+
+  it("is reachable from the sign-in form", async () => {
+    render(<SignInPage />);
+    expect(
+      screen.getByRole("button", { name: /forgot password/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("is not offered while creating an account", async () => {
+    render(<SignInPage />);
+    await userEvent.click(screen.getByRole("tab", { name: /create account/i }));
+
+    expect(screen.queryByRole("button", { name: /forgot password/i })).toBeNull();
+  });
+
+  it("asks for an email and nothing else", async () => {
+    await openTheResetForm();
+
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    // A password would be meaningless here -- that is the thing being reset.
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
+  });
+
+  it("requests the reset for the address given", async () => {
+    await openTheResetForm();
+
+    await fill(/email/i, "ada@acme.com");
+    await userEvent.click(screen.getByRole("button", { name: /create a reset link/i }));
+
+    await waitFor(() =>
+      expect(requestPasswordReset).toHaveBeenCalledWith("ada@acme.com"),
+    );
+  });
+
+  it("shows what the server said, as a status rather than an error", async () => {
+    await openTheResetForm();
+
+    await fill(/email/i, "ada@acme.com");
+    await userEvent.click(screen.getByRole("button", { name: /create a reset link/i }));
+
+    // The wording is deliberately non-committal about whether the account
+    // exists, so it must not be dressed up as either success or failure.
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent(/if that address has an account/i);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("does not sign anyone in", async () => {
+    await openTheResetForm();
+
+    await fill(/email/i, "ada@acme.com");
+    await userEvent.click(screen.getByRole("button", { name: /create a reset link/i }));
+
+    await screen.findByRole("status");
+    expect(signIn).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("offers a way back to signing in", async () => {
+    await openTheResetForm();
+    await userEvent.click(screen.getByRole("button", { name: /back to sign in/i }));
+
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });
 });
