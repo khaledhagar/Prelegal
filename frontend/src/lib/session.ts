@@ -179,3 +179,46 @@ export function initials(name: string): string {
     .map((part) => part[0].toUpperCase());
   return letters.join("");
 }
+
+/**
+ * Changes the password of the signed-in account.
+ *
+ * The current password goes with it: the session alone is not enough, so a
+ * browser someone walked away from cannot be used to take the account.
+ * Succeeding ends every *other* session; this one survives.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await postJson<void>(
+    "/api/auth/password",
+    { currentPassword, newPassword },
+    UNREACHABLE,
+  );
+}
+
+/**
+ * Asks for a reset link.
+ *
+ * Resolves the same way whether or not the address has an account -- the
+ * backend deliberately will not say, so neither can this.
+ */
+export async function requestPasswordReset(email: string): Promise<string> {
+  const body = await postJson<{ detail: string }>(
+    "/api/auth/forgot",
+    { email },
+    UNREACHABLE,
+  );
+  return body.detail;
+}
+
+/** Sets a new password from a reset token. Ends every session, including any
+ * this browser holds, so the next step is always signing in again. */
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await postJson<void>("/api/auth/reset", { token, newPassword }, UNREACHABLE);
+  forgetSession();
+}
