@@ -64,51 +64,22 @@ frontend too, that is the whole app.
 Defined once as Tailwind theme tokens in `frontend/src/app/globals.css`. Use the
 tokens (`bg-brand-navy`, `text-brand-gray`, …), not raw hex.
 
-## PL-7 handoff — where this was left
-
-*Written 2026-09-03 mid-ticket, on branch `feat/PL-7-accounts-and-polish`.
-Delete this section once the ticket is closed.*
-
-**The code and the tests are complete and green.** What is left is verification
-that needs a running machine, and the PR.
-
-Done:
-
-- Accounts end to end: `signup` / `login` / `logout` / `me`, scrypt password
-  hashing, httpOnly session cookie, sessions stored as a token hash.
-- `/api/drafts` with per-user scoping; `/api/chat` and `/api/drafts` now
-  require a session.
-- Frontend: real sign-in/sign-up screen, `/app/documents`, "Save to my
-  documents", reopen a draft with `?draft=<id>`, session backed by
-  `/api/auth/me` rather than localStorage.
-- Polish: semantic colour tokens in `globals.css`; all 47 stray slate/sky
-  classes gone; the agreement now renders as paper rather than app chrome.
-- Disclaimer in the shell footer, above the preview, on the saved list, on the
-  sign-in screen, and — new — inside the generated PDF on every page.
-- **334 frontend tests, 154 backend tests, all passing.** `tsc --noEmit` and
-  `eslint` clean. `next build` produces both routes.
-
-Not yet done:
-
-1. **`docker build` has not succeeded.** It fails in the build container with
-   `failed to lookup address information: Name does not resolve` while
-   `uv sync` fetches dependencies — DNS inside the container, not the
-   Dockerfile. Docker Desktop had only just started. Retry with the daemon
-   settled; if it persists, check Docker Desktop's DNS/WSL network settings.
-   The Dockerfile change in this branch is one line: `COPY catalog.json
-   hints.json ./`, needed since PL-6.
-2. **The server has not been run for manual checking**, and the smoke,
-   regression and security passes against a live server have not been done.
-   Regression is covered by the two suites above; the security pass wants a
-   live probe of: anonymous access to `/api/chat` and `/api/drafts`, reading
-   another user's draft by id, cookie flags, and whether a stored draft title
-   can carry script into the saved list.
-3. **No PR yet.** Nothing has been merged; `main` is untouched.
-
 ## Implementation status
 
 *Last updated 2026-09-03, after PL-7. Keep this section honest — it is the only
 place that says what exists rather than what is planned.*
+
+Verified at the close of PL-7, against both `uv run uvicorn` and the built
+image: `docker build` succeeds and the container serves the whole app on one
+port; a real chat turn reaches the model and comes back with the document type
+and the fields together; `/api/chat` and `/api/drafts` answer 401 to anonymous
+callers; another user's draft is 404 to read *and* to delete; login gives one
+answer for an unknown email and a wrong password; the session cookie is
+`HttpOnly; Path=/; SameSite=lax` and signing out makes a replayed token 401;
+the database holds only scrypt hashes and SHA-256 session fingerprints. A
+`<script>` in a saved draft's title is stored verbatim and rendered as text —
+there is no `dangerouslySetInnerHTML` anywhere in `frontend/src`, and adding
+one is how that would stop being true.
 
 ### Built
 
