@@ -103,7 +103,13 @@ export function DocumentChat({
   return (
     <section
       aria-label="Drafting assistant"
-      className="flex h-[32rem] flex-col rounded-xl border border-line bg-surface shadow-sm lg:h-[calc(100vh-24rem)]"
+      // On a wide screen this is a flex child of the sticky column, so it
+      // takes the height left over once the picker and the actions have had
+      // theirs -- a fixed `calc(100vh - …)` here cannot know how tall those
+      // are, and guessing low pushed the buttons off the bottom of the column
+      // where nothing could scroll to them. The minimum keeps it usable; below
+      // `lg` the column is ordinary flow and the fixed height applies.
+      className="flex h-[32rem] flex-col rounded-xl border border-line bg-surface shadow-sm lg:h-auto lg:min-h-[16rem] lg:flex-1"
     >
       <div
         role="log"

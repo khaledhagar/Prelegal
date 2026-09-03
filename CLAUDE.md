@@ -159,6 +159,16 @@ one is how that would stop being true.
   `useCallback`/`useEffect` dependency list: it is a fresh object every render,
   so the effect re-runs forever. `DocumentCreator` and `SavedDocuments` hold it
   in a ref synced by an effect.
+- The drafter's left column in `DocumentCreator` is `lg:sticky`, and a sticky
+  element taller than the space it sticks in traps whatever hangs past the
+  bottom edge — no scroll position can reach it. `Download PDF` and `Save to my
+  documents` sit at the very bottom of that column, so it is bounded with
+  `lg:max-h-[calc(100vh-6rem)]` and `DocumentChat` flexes into what is left
+  rather than claiming a fixed `calc(100vh - …)` of its own. Giving the chat a
+  fixed height again is how both buttons became unclickable on any window
+  shorter than about 1145px. jsdom has no layout, so the 334 frontend tests
+  cannot catch this — it only shows up in a real browser.
+
 - `frontend/src/pdf/AgreementDocument.tsx` positions its page-number footer with
   `top` (`FOOTER_FROM_TOP`), not `bottom`. A `fixed` element positioned with
   `bottom` makes @react-pdf 4.6.1 fail outright on the three longest

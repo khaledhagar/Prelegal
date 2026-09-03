@@ -196,7 +196,16 @@ export function DocumentCreator() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
-        <div className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+        {/*
+          The column is sticky, so it must never be taller than the space it
+          sticks in: anything past the bottom edge cannot be scrolled to, and
+          the two buttons below the chat are the last things in it. Bounding the
+          height here and letting the chat flex into what is left keeps them
+          reachable without anyone having to keep a magic number in step with
+          the picker and the actions. `overflow-y-auto` is the backstop for a
+          viewport too short even for the chat's minimum.
+        */}
+        <div className="space-y-5 lg:sticky lg:top-20 lg:flex lg:max-h-[calc(100vh-6rem)] lg:flex-col lg:self-start lg:overflow-y-auto">
           <DocumentPicker selected={values.documentType} onSelect={handleSelect} />
 
           <DocumentChat
