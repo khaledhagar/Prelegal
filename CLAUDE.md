@@ -66,32 +66,50 @@ tokens (`bg-brand-navy`, `text-brand-gray`, …), not raw hex.
 
 ## Implementation status
 
-*Last updated 2026-09-03, after PL-6. Keep this section honest — it is the only
+*Last updated 2026-09-03, after PL-7. Keep this section honest — it is the only
 place that says what exists rather than what is planned.*
+
+Verified at the close of PL-7, against both `uv run uvicorn` and the built
+image: `docker build` succeeds and the container serves the whole app on one
+port; a real chat turn reaches the model and comes back with the document type
+and the fields together; `/api/chat` and `/api/drafts` answer 401 to anonymous
+callers; another user's draft is 404 to read *and* to delete; login gives one
+answer for an unknown email and a wrong password; the session cookie is
+`HttpOnly; Path=/; SameSite=lax` and signing out makes a replayed token 401;
+the database holds only scrypt hashes and SHA-256 session fingerprints. A
+`<script>` in a saved draft's title is stored verbatim and rendered as text —
+there is no `dangerouslySetInnerHTML` anywhere in `frontend/src`, and adding
+one is how that would stop being true.
+
+Two layout faults came out of that browser pass, both invisible to the test
+suite and both fixed: `Download PDF` and `Save to my documents` sat below the
+bottom edge of a sticky column and could not be clicked at all, and the app
+header ran 8px past the right edge of a phone and scrolled every page sideways.
+All three routes are now checked clean from 320px to 1440px.
 
 ### Built
 
 | Area | State | Ticket |
 | --- | --- | --- |
 | `templates/` | 12 markdown files covering 11 agreements — the Mutual NDA is split into Standard Terms + Cover Page | PL-2 |
-| `frontend/` | Next.js 16, static export. `/` placeholder sign-in, `/app` signed-in shell | PL-3, PL-4 |
+| `frontend/` | Next.js 16, static export. `/` sign-in & sign-up, `/app` drafter, `/app/documents` saved work | PL-3, PL-4, PL-7 |
+| Accounts | Real registration and sign-in. scrypt password hashing, httpOnly session cookie, server-side sessions | PL-7 |
+| Saved documents | Explicit "Save to my documents"; reopen a draft back into the workspace | PL-7 |
 | Agreement drafter | All 11 agreements. Freeform AI chat → live preview → downloadable PDF, plus a picker | PL-3, PL-5, PL-6 |
 | Document registry | `scripts/build-documents.mjs` derives each agreement's fields from its own template, joins `hints.json`, emits both halves | PL-6 |
 | AI chat | LiteLLM → OpenRouter → `gpt-oss-120b` on Cerebras, Structured Outputs. One call per turn, backend-only, stateless | PL-5, PL-6 |
-| `backend/` | uv + FastAPI. `/api/health`, `/api/chat`, `/api/documents`; also serves the frontend export | PL-4, PL-5, PL-6 |
-| Database | SQLite, `users` table only, deleted and rebuilt from `backend/app/schema.sql` on every startup | PL-4 |
+| `backend/` | uv + FastAPI. `/api/health`, `/api/chat`, `/api/documents`, `/api/auth/*`, `/api/drafts`; also serves the frontend export | PL-4, PL-5, PL-6, PL-7 |
+| Database | SQLite: `users`, `sessions`, `drafts`. Deleted and rebuilt from `backend/app/schema.sql` on every startup | PL-4, PL-7 |
 | Packaging | One Docker image, `scripts/start-*` / `stop-*` for mac, linux and windows | PL-4 |
-| Tests | 271 frontend (vitest) + 100 backend (pytest) | PL-3, PL-4, PL-5, PL-6 |
+| Tests | 334 frontend (vitest) + 154 backend (pytest) | PL-3, PL-4, PL-5, PL-6, PL-7 |
 
 ### Not built yet
 
-- **Authentication.** Sign-in is a client-side placeholder living entirely in
-  `frontend/src/lib/session.ts`: no password is checked, no request is made, and
-  the `users` table is never written to. The route guard in `AppShell` is a
-  convenience, not a security control — the frontend is static files, so
-  anything that needs protecting must be enforced by the backend.
-- **Document persistence.** Nothing is saved; the PDF is generated in the
-  browser and the database does not survive a restart.
+- **Durable storage.** The database is still deleted and rebuilt on every
+  startup, so accounts and saved documents last only as long as the server run.
+  The sign-in screen says so rather than letting anyone discover it.
+- **Password reset, email verification, rate limiting.** None exist. There is
+  nothing to stop repeated sign-in attempts against a known address.
 - **Editing fields by hand.** PL-5 removed the cover-page form; the only way to
   change a value is to tell the assistant.
 - **Several statements of work on one PSA.** A Professional Services Agreement
@@ -129,9 +147,44 @@ place that says what exists rather than what is planned.*
   field but never erase one. Do not "fix" this into a plain overwrite.
 - `OPENROUTER_API_KEY` is never baked into the image. The start scripts pass it
   at run time; without it everything works except `/api/chat`.
-- The brand palette currently dresses the login screen, the shell and the
-  drafter's chrome; the agreement preview inside still uses its original
-  slate/sky styling.
+- Colours come from the tokens in `frontend/src/app/globals.css`, not from
+  Tailwind's default palette. `bg-surface` / `text-ink` / `border-line` already
+  answer to the colour scheme, so they need no `dark:` twin; the `paper-*`
+  tokens dress the agreement itself and are deliberately *not* brand colours —
+  a contract in corporate purple reads as marketing.
+- `/api/chat` and `/api/drafts` require a session (`CurrentUser` in
+  `backend/app/dependencies.py`). The route guard in `AppShell` is a
+  convenience; the backend is the access control. A chat turn spends real money
+  on the deployment's key, which is why it is not open.
+- Sessions are stored as a SHA-256 of the token, never the token, and passwords
+  as scrypt hashes — both so that reading the database yields nothing usable.
+  `/api/auth/login` gives the same answer for an unknown email and a wrong
+  password; `/api/drafts/{id}` answers 404, not 403, for someone else's
+  document. Do not "improve" either into a more specific message.
+- A component that calls `useRouter()` must not put the router in a
+  `useCallback`/`useEffect` dependency list: it is a fresh object every render,
+  so the effect re-runs forever. `DocumentCreator` and `SavedDocuments` hold it
+  in a ref synced by an effect.
+- The drafter's left column in `DocumentCreator` is `lg:sticky`, and a sticky
+  element taller than the space it sticks in traps whatever hangs past the
+  bottom edge — no scroll position can reach it. `Download PDF` and `Save to my
+  documents` sit at the very bottom of that column, so it is bounded with
+  `lg:max-h-[calc(100vh-6rem)]` and `DocumentChat` flexes into what is left
+  rather than claiming a fixed `calc(100vh - …)` of its own. Giving the chat a
+  fixed height again is how both buttons became unclickable on any window
+  shorter than about 1145px. jsdom has no layout, so the 334 frontend tests
+  cannot catch this — it only shows up in a real browser.
+
+- The header bar in `AppShell` carries `flex-wrap`, and the account block is
+  allowed to drop to a second line. The wordmark, both nav links and that block
+  want about 423px; a 390px phone has 375px to give. Held in one rigid row the
+  sign-out button crossed the right edge and took the whole document with it,
+  so every page scrolled sideways. The tighter `px-4` and `gap-4` below `sm`
+  are what usually avoid the wrap; the wrap is what makes overflow impossible
+  regardless, which is the property to keep when adding a nav item. The avatar
+  and the sign-out button are `shrink-0` — without it flexbox squeezed the
+  avatar from 32px to 23px and served an oval.
+
 - `frontend/src/pdf/AgreementDocument.tsx` positions its page-number footer with
   `top` (`FOOTER_FROM_TOP`), not `bottom`. A `fixed` element positioned with
   `bottom` makes @react-pdf 4.6.1 fail outright on the three longest

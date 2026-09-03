@@ -9,9 +9,23 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const sendChat = vi.fn();
+const saveDraft = vi.fn();
+const readDraft = vi.fn();
+const replace = vi.fn();
 
 vi.mock("@react-pdf/renderer", () => ({ pdf: () => ({ toBlob: vi.fn() }) }));
 vi.mock("@/pdf/AgreementDocument", () => ({ AgreementPdfDocument: () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace }),
+}));
+vi.mock("@/lib/drafts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/drafts")>();
+  return {
+    ...actual,
+    saveDraft: (...args: Parameters<typeof actual.saveDraft>) => saveDraft(...args),
+    readDraft: (...args: Parameters<typeof actual.readDraft>) => readDraft(...args),
+  };
+});
 vi.mock("@/lib/chat", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/chat")>();
   return {
@@ -22,6 +36,7 @@ vi.mock("@/lib/chat", async (importOriginal) => {
 
 import { DocumentCreator } from "./DocumentCreator";
 import { ChatError } from "@/lib/chat";
+import { ApiError } from "@/lib/api";
 import { emptyValues } from "@/lib/values";
 
 /** A backend reply that settles on a document and records some fields. */
@@ -43,6 +58,16 @@ async function say(text: string) {
 
 beforeEach(() => {
   sendChat.mockReset();
+  saveDraft.mockReset().mockResolvedValue({
+    id: 1,
+    documentType: "mutual-nda",
+    title: "saved",
+    createdAt: "2026-09-03 10:00:00",
+    updatedAt: "2026-09-03 10:00:00",
+  });
+  readDraft.mockReset();
+  replace.mockReset();
+  window.history.replaceState({}, "", "/app");
   Element.prototype.scrollIntoView = vi.fn();
 });
 
@@ -238,5 +263,138 @@ describe("once an agreement is under way", () => {
     expect(
       await screen.findByText(/Based on the Common Paper Pilot Agreement/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("saving", () => {
+  it("keeps the agreement under a title built from the parties", async () => {
+    // Six saved drafts all called "Mutual Non-Disclosure Agreement" would be
+    // useless to tell apart.
+    sendChat.mockResolvedValue({
+      reply: "Noted.",
+      values: {
+        ...emptyValues("mutual-nda"),
+        parties: [
+          { company: "Acme Ltd", printName: "", title: "", noticeAddress: "" },
+          { company: "Globex Inc", printName: "", title: "", noticeAddress: "" },
+        ],
+      },
+    });
+    render(<DocumentCreator />);
+
+    await say("a mutual NDA between Acme and Globex");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /save to my documents/i }),
+    );
+
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled());
+    const [slug, title] = saveDraft.mock.calls[0];
+    expect(slug).toBe("mutual-nda");
+    expect(title).toContain("Acme Ltd");
+    expect(title).toContain("Globex Inc");
+  });
+
+  it("confirms the save and points at the list", async () => {
+    sendChat.mockResolvedValue(turn("Ready.", "mutual-nda"));
+    render(<DocumentCreator />);
+
+    await say("a mutual NDA");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /save to my documents/i }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/saved/i);
+    expect(
+      screen.getByRole("link", { name: /view my documents/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("reports a failed save rather than pretending it worked", async () => {
+    saveDraft.mockRejectedValue(new Error("Could not reach the server."));
+    sendChat.mockResolvedValue(turn("Ready.", "mutual-nda"));
+    render(<DocumentCreator />);
+
+    await say("a mutual NDA");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /save to my documents/i }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not reach the server.",
+    );
+  });
+
+  it("offers nothing to save before a document is chosen", () => {
+    render(<DocumentCreator />);
+    expect(
+      screen.queryByRole("button", { name: /save to my documents/i }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("reopening a saved document", () => {
+  it("loads the saved answers when opened with ?draft=", async () => {
+    window.history.replaceState({}, "", "/app?draft=7");
+    readDraft.mockResolvedValue({
+      id: 7,
+      documentType: "service-level-agreement",
+      title: "SLA — Acme",
+      createdAt: "2026-09-03 10:00:00",
+      updatedAt: "2026-09-03 10:00:00",
+      values: {
+        ...emptyValues("service-level-agreement"),
+        fields: { targetUptime: "99.95%" },
+      },
+    });
+
+    render(<DocumentCreator />);
+
+    await waitFor(() => expect(readDraft).toHaveBeenCalledWith(7));
+    const preview = await screen.findByLabelText(/agreement preview/i);
+    await waitFor(() =>
+      expect(within(preview).getByText("99.95%")).toBeInTheDocument(),
+    );
+  });
+
+  it("ignores a nonsense draft id rather than asking for it", () => {
+    window.history.replaceState({}, "", "/app?draft=not-a-number");
+    render(<DocumentCreator />);
+    expect(readDraft).not.toHaveBeenCalled();
+  });
+
+  it("says so when a saved document cannot be opened", async () => {
+    window.history.replaceState({}, "", "/app?draft=7");
+    readDraft.mockRejectedValue(new Error("No such document."));
+
+    render(<DocumentCreator />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /could not be opened/i,
+    );
+  });
+});
+
+describe("the draft disclaimer", () => {
+  it("sits above the agreement, not in fine print below it", async () => {
+    sendChat.mockResolvedValue(turn("Ready.", "mutual-nda"));
+    render(<DocumentCreator />);
+
+    await say("a mutual NDA");
+
+    expect(await screen.findByText(/this is a draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/subject to\s+review by a qualified lawyer/i)).toBeInTheDocument();
+  });
+});
+
+describe("a session that expires mid-use", () => {
+  it("sends the user back to sign in rather than showing an error", async () => {
+    // The database is rebuilt on restart, so a session can vanish under a user
+    // who is in the middle of drafting.
+    sendChat.mockRejectedValue(new ApiError("Sign in to continue.", 401));
+    render(<DocumentCreator />);
+
+    await say("hello");
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
   });
 });

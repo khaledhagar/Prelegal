@@ -20,13 +20,18 @@ import {
   type Agreement as Model,
 } from "@/lib/document";
 
+// Paper and ink, matching the on-screen preview. A printed contract in brand
+// colours reads as marketing, so the palette stays out of the document itself.
 const COLORS = {
-  ink: "#0f172a",
-  muted: "#475569",
-  faint: "#94a3b8",
-  rule: "#cbd5e1",
-  link: "#0369a1",
-  highlight: "#fef3c7",
+  ink: "#1a1a17",
+  muted: "#5d5f5a",
+  faint: "#8b8d86",
+  rule: "#ddd9cd",
+  link: "#3b3a34",
+  highlight: "#fdf1cf",
+  noticeInk: "#5c4708",
+  noticeRule: "#e3c15f",
+  noticeFill: "#fdf6e3",
 };
 
 /**
@@ -75,6 +80,18 @@ const styles = StyleSheet.create({
   paragraph: { marginTop: 5, textAlign: "justify" },
   clause: { marginTop: 9, textAlign: "justify" },
   section: { marginTop: 14, fontSize: 11, fontFamily: "Helvetica-Bold" },
+  notice: {
+    marginBottom: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: COLORS.noticeRule,
+    backgroundColor: COLORS.noticeFill,
+    color: COLORS.noticeInk,
+    fontSize: 8.5,
+    lineHeight: 1.45,
+  },
+  noticeHeading: { fontFamily: "Helvetica-Bold" },
   option: { marginTop: 3, flexDirection: "row" },
   optionMarker: { width: 18, fontFamily: "Courier" },
   optionBody: { flex: 1 },
@@ -257,12 +274,26 @@ export function AgreementPdfDocument({
   return (
     <Document title={name} author="Prelegal" subject={`Common Paper ${name}`}>
       <Page size="LETTER" style={styles.page}>
+        {/* The PDF is the artifact that leaves the app: it gets emailed on and
+            read by people who never saw the screen it came from, so the notice
+            has to travel with it rather than live in the interface. */}
+        <View style={styles.notice}>
+          <Text>
+            <Text style={styles.noticeHeading}>DRAFT — FOR REVIEW. </Text>
+            This document was generated from a template and the answers given to
+            an automated assistant. It is not legal advice, and it should be
+            reviewed by a qualified lawyer before it is signed or relied upon.
+          </Text>
+        </View>
+
         {document.blocks.map((block, index) => (
           <BlockView key={index} block={block} />
         ))}
         <Text
           style={styles.pageNumber}
-          render={({ pageNumber, totalPages }) => `${pageNumber} of ${totalPages}`}
+          render={({ pageNumber, totalPages }) =>
+            `Draft — subject to legal review    ·    ${pageNumber} of ${totalPages}`
+          }
           fixed
         />
       </Page>

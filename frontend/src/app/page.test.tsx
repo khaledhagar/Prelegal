@@ -1,82 +1,230 @@
 /**
- * The fake sign-in screen. What matters is that it takes anyone through to the
- * platform, remembers who they said they were, and does not pretend to be a
- * security boundary.
+ * The sign-in / sign-up screen.
+ *
+ * The session module is stubbed: what is under test is the form's behaviour —
+ * which call it makes, what it does with a refusal — not the transport, which
+ * src/lib/session.test.tsx covers.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SignIn from "./page";
 
 const replace = vi.fn();
+const signIn = vi.fn();
+const signUp = vi.fn();
+let sessionState: { session: unknown; hydrated: boolean } = {
+  session: null,
+  hydrated: true,
+};
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace }),
 }));
 
-beforeEach(() => {
-  replace.mockClear();
+vi.mock("@/lib/session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/session")>();
+  return {
+    ...actual,
+    useSession: () => sessionState,
+    signIn: (...args: unknown[]) => signIn(...args),
+    signUp: (...args: unknown[]) => signUp(...args),
+  };
 });
 
-afterEach(() => {
-  window.localStorage.clear();
-});
+import SignInPage from "./page";
 
-async function signIn(name: string, email: string) {
-  await userEvent.type(screen.getByLabelText("Full name"), name);
-  await userEvent.type(screen.getByLabelText("Work email"), email);
-  await userEvent.click(screen.getByRole("button", { name: /continue to prelegal/i }));
+async function fill(label: RegExp, value: string) {
+  await userEvent.type(screen.getByLabelText(label), value);
 }
 
-describe("sign-in screen", () => {
-  it("asks who the user is", () => {
-    render(<SignIn />);
-    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Full name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Work email")).toBeInTheDocument();
+beforeEach(() => {
+  replace.mockReset();
+  signIn.mockReset().mockResolvedValue({ id: 1, name: "Ada", email: "a@b.com" });
+  signUp.mockReset().mockResolvedValue({ id: 1, name: "Ada", email: "a@b.com" });
+  sessionState = { session: null, hydrated: true };
+});
+
+describe("signing in", () => {
+  it("asks for an email and a password", () => {
+    render(<SignInPage />);
+
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    // Signing in needs no name; only registering does.
+    expect(screen.queryByLabelText(/your name/i)).not.toBeInTheDocument();
   });
 
-  it("says plainly that nothing is being authenticated", () => {
-    render(<SignIn />);
-    expect(screen.getByText(/placeholder sign-in/i)).toBeInTheDocument();
-    expect(screen.getByText(/no password is checked/i)).toBeInTheDocument();
+  it("hides the password as it is typed", () => {
+    render(<SignInPage />);
+    expect(screen.getByLabelText(/password/i)).toHaveAttribute("type", "password");
   });
 
-  it("starts a session and moves to the platform", async () => {
-    render(<SignIn />);
-    await signIn("Ada Lovelace", "ada@acme.com");
+  it("signs in and moves to the platform", async () => {
+    render(<SignInPage />);
 
-    expect(JSON.parse(window.localStorage.getItem("prelegal.session")!)).toEqual({
-      name: "Ada Lovelace",
-      email: "ada@acme.com",
-    });
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/app"));
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "correct-horse");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() =>
+      expect(signIn).toHaveBeenCalledWith({
+        email: "ada@acme.com",
+        password: "correct-horse",
+      }),
+    );
+    expect(replace).toHaveBeenCalledWith("/app");
   });
 
-  it("trims stray whitespace out of what was typed", async () => {
-    render(<SignIn />);
-    await signIn("  Ada Lovelace  ", "  ada@acme.com  ");
+  it("trims stray whitespace out of the email", async () => {
+    render(<SignInPage />);
 
-    expect(JSON.parse(window.localStorage.getItem("prelegal.session")!)).toEqual({
-      name: "Ada Lovelace",
-      email: "ada@acme.com",
-    });
+    await fill(/email/i, "  ada@acme.com  ");
+    await fill(/password/i, "correct-horse");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() =>
+      expect(signIn.mock.calls[0][0].email).toBe("ada@acme.com"),
+    );
   });
 
-  it("does not submit without a name and an email", async () => {
-    render(<SignIn />);
-    await userEvent.click(screen.getByRole("button", { name: /continue to prelegal/i }));
+  it("does not trim the password", async () => {
+    // Spaces can be part of a passphrase; silently removing them would lock
+    // someone out of an account they typed correctly.
+    render(<SignInPage />);
+
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, " has spaces ");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() =>
+      expect(signIn.mock.calls[0][0].password).toBe(" has spaces "),
+    );
+  });
+
+  it("shows the backend's refusal without guessing at it", async () => {
+    signIn.mockRejectedValue(new Error("Email or password is incorrect."));
+    render(<SignInPage />);
+
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Email or password is incorrect.",
+    );
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("lets the user try again after a refusal", async () => {
+    signIn.mockRejectedValueOnce(new Error("Email or password is incorrect."));
+    render(<SignInPage />);
+
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await screen.findByRole("alert");
+
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeEnabled();
+  });
+});
+
+describe("creating an account", () => {
+  async function switchToSignUp() {
+    await userEvent.click(screen.getByRole("tab", { name: /create account/i }));
+  }
+
+  it("also asks for a name", async () => {
+    render(<SignInPage />);
+    await switchToSignUp();
+
+    expect(screen.getByLabelText(/your name/i)).toBeInTheDocument();
+  });
+
+  it("registers and moves to the platform", async () => {
+    render(<SignInPage />);
+    await switchToSignUp();
+
+    await fill(/your name/i, "Ada Lovelace");
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "correct-horse");
+    await userEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    await waitFor(() =>
+      expect(signUp).toHaveBeenCalledWith({
+        name: "Ada Lovelace",
+        email: "ada@acme.com",
+        password: "correct-horse",
+      }),
+    );
+    expect(replace).toHaveBeenCalledWith("/app");
+  });
+
+  it("says when the email is already taken", async () => {
+    signUp.mockRejectedValue(
+      new Error("That email already has an account. Sign in instead."),
+    );
+    render(<SignInPage />);
+    await switchToSignUp();
+
+    await fill(/your name/i, "Ada");
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "correct-horse");
+    await userEvent.click(
+      screen.getByRole("button", { name: /create account/i }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "already has an account",
+    );
+  });
+
+  it("clears a previous error when switching mode", async () => {
+    signIn.mockRejectedValue(new Error("Email or password is incorrect."));
+    render(<SignInPage />);
+
+    await fill(/email/i, "ada@acme.com");
+    await fill(/password/i, "wrong-password");
+    await userEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+    await screen.findByRole("alert");
+
+    await switchToSignUp();
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("the screen itself", () => {
+  it("sends an already signed-in visitor straight through", () => {
+    sessionState = {
+      session: { id: 1, name: "Ada", email: "ada@acme.com" },
+      hydrated: true,
+    };
+
+    render(<SignInPage />);
+
+    expect(replace).toHaveBeenCalledWith("/app");
+  });
+
+  it("waits for the session to be known before redirecting", () => {
+    // Redirecting on an unknown session would bounce a signed-in user on every
+    // page load.
+    sessionState = { session: null, hydrated: false };
+
+    render(<SignInPage />);
 
     expect(replace).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem("prelegal.session")).toBeNull();
   });
 
-  it("sends an already signed-in visitor straight through", async () => {
-    window.localStorage.setItem(
-      "prelegal.session",
-      JSON.stringify({ name: "Ada Lovelace", email: "ada@acme.com" }),
-    );
-    render(<SignIn />);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/app"));
+  it("says that accounts do not survive a restart", () => {
+    // The database is rebuilt on every start. Better said here than discovered
+    // when someone comes back to find their documents gone.
+    render(<SignInPage />);
+
+    expect(screen.getByText(/until the server restarts/i)).toBeInTheDocument();
+  });
+
+  it("states that the product produces drafts, not legal advice", () => {
+    render(<SignInPage />);
+    expect(screen.getByText(/not legal advice/i)).toBeInTheDocument();
   });
 });

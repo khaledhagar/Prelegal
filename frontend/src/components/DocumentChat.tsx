@@ -33,7 +33,7 @@ function Bubble({ message }: { message: ChatMessage }) {
           "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed " +
           (isUser
             ? "rounded-br-sm bg-brand-blue text-white"
-            : "rounded-bl-sm bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100")
+            : "rounded-bl-sm bg-surface-sunken text-ink")
         }
       >
         <span className="sr-only">{isUser ? "You said: " : "Assistant said: "}</span>
@@ -54,8 +54,8 @@ function Captured({
   if (rows.length === 0) return null;
 
   return (
-    <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-900">
-      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+    <details className="rounded-lg border border-line bg-surface-sunken px-3 py-2">
+      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-ink-soft">
         Captured so far ({rows.length})
       </summary>
       <dl className="mt-2 space-y-1.5">
@@ -65,7 +65,7 @@ function Captured({
             className="grid grid-cols-[9rem_minmax(0,1fr)] gap-2 text-xs"
           >
             <dt className="text-brand-gray">{row.label}</dt>
-            <dd className="break-words text-slate-800 dark:text-slate-200">
+            <dd className="break-words text-ink">
               {row.value}
             </dd>
           </div>
@@ -103,12 +103,19 @@ export function DocumentChat({
   return (
     <section
       aria-label="Drafting assistant"
-      className="flex h-[32rem] flex-col rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:h-[calc(100vh-22rem)]"
+      // On a wide screen this is a flex child of the sticky column, so it
+      // takes the height left over once the picker and the actions have had
+      // theirs -- a fixed `calc(100vh - …)` here cannot know how tall those
+      // are, and guessing low pushed the buttons off the bottom of the column
+      // where nothing could scroll to them. The minimum keeps it usable; below
+      // `lg` the column is ordinary flow and the fixed height applies.
+      className="flex h-[32rem] flex-col rounded-xl border border-line bg-surface shadow-sm lg:h-auto lg:min-h-[16rem] lg:flex-1"
     >
       <div
         role="log"
         aria-live="polite"
         aria-label="Conversation"
+        aria-busy={pending}
         className="flex-1 space-y-3 overflow-y-auto p-4"
       >
         {messages.map((message, index) => (
@@ -122,7 +129,7 @@ export function DocumentChat({
         {error ? (
           <p
             role="alert"
-            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+            className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200"
           >
             {error}
           </p>
@@ -131,7 +138,7 @@ export function DocumentChat({
         <div ref={endOfTranscript} />
       </div>
 
-      <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-800">
+      <div className="space-y-2 border-t border-line p-3">
         {document ? <Captured document={document} values={values} /> : null}
 
         <form onSubmit={handleSubmit} className="flex items-end gap-2">
@@ -140,7 +147,7 @@ export function DocumentChat({
           </label>
           <input
             id="chat-message"
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink shadow-sm outline-none transition placeholder:text-ink-faint focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/25"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Type your answer…"
@@ -150,7 +157,7 @@ export function DocumentChat({
           <button
             type="submit"
             disabled={pending || draft.trim().length === 0}
-            className="shrink-0 rounded-md bg-brand-purple px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-brand-purple/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-brand-purple px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Send
           </button>

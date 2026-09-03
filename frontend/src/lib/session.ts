@@ -3,131 +3,171 @@
 /**
  * The signed-in session.
  *
- * PL-4 deliberately ships a *fake* sign-in: there is no password, no server
- * call and no account. Whatever the user types on the login screen is kept in
- * this browser and nowhere else, purely so the app has someone to greet and a
- * "sign out" that does something. The backend's `users` table exists but is not
- * written to yet.
+ * PL-7 made this real. The session lives in an httpOnly cookie the browser
+ * sends automatically and no script here can read -- including this one. So
+ * there is nothing to store locally: who is signed in is whatever
+ * `GET /api/auth/me` says, cached in this module and refreshed when it changes.
  *
- * This module is the single place that assumption lives. When real
- * authentication arrives it replaces the storage calls below; every component
- * already talks to `useSession`, `startSession` and `endSession`, so none of
- * them need to change.
+ * Components still talk to `useSession`, `signIn`, `signUp` and `signOut`, so
+ * the shape they depend on has not moved.
  */
 
 import { useSyncExternalStore } from "react";
+import { ApiError, getJson, postJson } from "@/lib/api";
 
 export type Session = {
+  id: number;
   name: string;
   email: string;
 };
 
-const STORAGE_KEY = "prelegal.session";
+export type Credentials = {
+  email: string;
+  password: string;
+};
 
-/**
- * Fired on `window` after a same-tab change. The built-in `storage` event only
- * reaches *other* tabs, so without this the header would not notice its own
- * sign-out until a reload.
- */
-const CHANGE_EVENT = "prelegal:session-change";
+export type Registration = Credentials & { name: string };
 
-/**
- * Storage access throws outright in some privacy modes rather than returning
- * null, so every read and write is guarded. A browser that refuses to remember
- * the session degrades to "signed out", which is a usable state.
- */
-function readRaw(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeRaw(value: string | null): void {
-  try {
-    if (value === null) window.localStorage.removeItem(STORAGE_KEY);
-    else window.localStorage.setItem(STORAGE_KEY, value);
-  } catch {
-    // Nothing to do -- the session simply will not survive a reload.
-  }
-}
-
-function parse(raw: string | null): Session | null {
-  if (raw === null) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return null;
-    const { name, email } = parsed as Partial<Session>;
-    if (typeof name !== "string" || typeof email !== "string") return null;
-    return { name, email };
-  } catch {
-    return null;
-  }
-}
+const UNREACHABLE =
+  "Could not reach the server. Check that the backend is running and try again.";
 
 /*
- * `useSyncExternalStore` re-reads the snapshot on every render and bails out of
- * updating only if the value is referentially equal to the last one. Parsing
- * the JSON on each call would hand it a fresh object every time and spin
- * forever, so the parsed session is cached against the raw string it came from.
+ * The store. `useSyncExternalStore` compares snapshots by reference, so the
+ * session object is only replaced when it genuinely changes -- returning a
+ * fresh object each read would re-render forever.
  */
-let cachedRaw: string | null = null;
-let cachedSession: Session | null = null;
+let session: Session | null = null;
+let loaded = false;
+let inFlight: Promise<void> | null = null;
+const listeners = new Set<() => void>();
 
-function getSnapshot(): Session | null {
-  const raw = readRaw();
-  if (raw !== cachedRaw) {
-    cachedRaw = raw;
-    cachedSession = parse(raw);
-  }
-  return cachedSession;
+function announce(): void {
+  for (const listener of listeners) listener();
 }
 
-/** The prerendered HTML has no browser storage, so it always renders signed out. */
+function set(next: Session | null): void {
+  session = next;
+  loaded = true;
+  announce();
+}
+
+/**
+ * Asks the backend who is signed in, once.
+ *
+ * A 401 is the ordinary "nobody" answer, not a failure. Any other error also
+ * resolves to signed out: the app cannot show the workspace without a session,
+ * and the sign-in screen is where a person can do something about it.
+ */
+function load(): Promise<void> {
+  inFlight ??= getJson<Session>("/api/auth/me", UNREACHABLE)
+    .then((account) => set(account))
+    .catch(() => set(null))
+    .finally(() => {
+      inFlight = null;
+    });
+  return inFlight;
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  if (!loaded && inFlight === null) void load();
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): Session | null {
+  return session;
+}
+
+/** The prerendered HTML has no cookie to read, so it renders signed out. */
 function getServerSnapshot(): Session | null {
   return null;
 }
 
-function subscribe(listener: () => void): () => void {
-  window.addEventListener("storage", listener);
-  window.addEventListener(CHANGE_EVENT, listener);
-  return () => {
-    window.removeEventListener("storage", listener);
-    window.removeEventListener(CHANGE_EVENT, listener);
-  };
+function hydratedSnapshot(): boolean {
+  return loaded;
 }
 
-/** Signs the user in. No credentials are checked -- see the note at the top. */
-export function startSession(session: Session): void {
-  writeRaw(JSON.stringify(session));
-  window.dispatchEvent(new Event(CHANGE_EVENT));
+function serverHydratedSnapshot(): boolean {
+  return false;
 }
 
-export function endSession(): void {
-  writeRaw(null);
-  window.dispatchEvent(new Event(CHANGE_EVENT));
+/** Registers an account and signs in. Throws `ApiError` with a readable message. */
+export async function signUp(registration: Registration): Promise<Session> {
+  const account = await postJson<Session>(
+    "/api/auth/signup",
+    registration,
+    UNREACHABLE,
+  );
+  set(account);
+  return account;
+}
+
+export async function signIn(credentials: Credentials): Promise<Session> {
+  const account = await postJson<Session>("/api/auth/login", credentials, UNREACHABLE);
+  set(account);
+  return account;
+}
+
+/**
+ * Ends the session.
+ *
+ * The local state is cleared even if the request fails: the user asked to be
+ * signed out, and leaving them looking signed in because the network blinked
+ * would be the wrong way to be wrong.
+ */
+export async function signOut(): Promise<void> {
+  try {
+    await postJson<void>("/api/auth/logout", {}, UNREACHABLE);
+  } catch {
+    // Nothing useful to say -- the cookie may well be gone anyway.
+  } finally {
+    set(null);
+  }
+}
+
+/**
+ * Records that the server has rejected our session.
+ *
+ * Called when a request comes back 401 mid-use, which means the session expired
+ * or the server restarted and took the database with it. Without this the app
+ * would keep showing a signed-in header over an API that refuses everything.
+ */
+export function forgetSession(): void {
+  if (session !== null) set(null);
+}
+
+/** True when an error means the session is gone rather than something broke. */
+export function isSessionExpired(error: unknown): boolean {
+  return error instanceof ApiError && error.isUnauthenticated;
 }
 
 export type SessionState = {
   session: Session | null;
   /**
-   * False during the server-rendered pass and the hydration render, when the
-   * session is unknowable. Guards must wait for this before deciding to
-   * redirect, or a signed-in user gets bounced back to the login screen on
-   * every page load.
+   * False until the first `/api/auth/me` has answered, when the session is
+   * unknowable. Guards must wait for this before deciding to redirect, or a
+   * signed-in user gets bounced to the login screen on every page load.
    */
   hydrated: boolean;
 };
 
 export function useSession(): SessionState {
-  const session = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const hydrated = useSyncExternalStore(
     subscribe,
-    () => true,
-    () => false,
+    hydratedSnapshot,
+    serverHydratedSnapshot,
   );
-  return { session, hydrated };
+  return { session: current, hydrated };
+}
+
+/** Drops the cached session. For tests, which need a clean module per case. */
+export function resetSessionForTests(): void {
+  session = null;
+  loaded = false;
+  inFlight = null;
 }
 
 /** The initials shown in the header chip, e.g. "Ada Lovelace" -> "AL". */

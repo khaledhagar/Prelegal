@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from app.chat import agent
 from app.chat.documents import get_document
 from app.chat.models import turn_model
+from tests.conftest import TEST_ACCOUNT
 
 
 def make_turn(
@@ -55,45 +56,45 @@ def fake_llm(monkeypatch: pytest.MonkeyPatch) -> FakeCompletion:
     return fake
 
 
-def post(client: TestClient, **body: Any) -> Any:
+def post(signed_in_client: TestClient, **body: Any) -> Any:
     payload = {"messages": [{"role": "user", "content": "Hello"}], **body}
-    return client.post("/api/chat", json=payload)
+    return signed_in_client.post("/api/chat", json=payload)
 
 
 def test_returns_the_assistant_reply(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    response = post(client)
+    response = post(signed_in_client)
     assert response.status_code == 200
     assert response.json()["reply"] == "Who are the two companies?"
 
 
 def test_records_the_document_the_assistant_settles_on(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     # Which agreement to draft rides in the same response as the reply; there is
     # no second call to classify it.
     fake_llm.turn = make_turn("service-level-agreement", reply="An SLA it is.")
 
-    values = post(client).json()["values"]
+    values = post(signed_in_client).json()["values"]
 
     assert values["documentType"] == "service-level-agreement"
 
 
 def test_leaves_the_document_unset_when_the_request_is_unsupported(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     # "We can't draft an employment contract, but here is the closest thing" is
     # a reply, not a decision -- nothing should be selected on the back of it.
     fake_llm.turn = make_turn(reply="We can't draft that. The closest is a PSA.")
 
-    values = post(client).json()["values"]
+    values = post(signed_in_client).json()["values"]
 
     assert values["documentType"] == ""
 
 
 def test_returns_the_values_with_the_patch_applied(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     fake_llm.turn = make_turn(
         "service-level-agreement",
@@ -102,7 +103,7 @@ def test_returns_the_values_with_the_patch_applied(
     )
 
     response = post(
-        client,
+        signed_in_client,
         values={
             "documentType": "service-level-agreement",
             "fields": {"supportChannel": "support@acme.io"},
@@ -116,7 +117,7 @@ def test_returns_the_values_with_the_patch_applied(
 
 
 def test_returns_names_the_frontend_reads(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     fake_llm.turn = make_turn(
         "mutual-nda",
@@ -124,7 +125,7 @@ def test_returns_names_the_frontend_reads(
         partyOne={"printName": "Ada Lovelace"},
     )
 
-    values = post(client, values={"documentType": "mutual-nda"}).json()["values"]
+    values = post(signed_in_client, values={"documentType": "mutual-nda"}).json()["values"]
 
     assert values["parties"][0]["printName"] == "Ada Lovelace"
     assert "print_name" not in values["parties"][0]
@@ -132,7 +133,7 @@ def test_returns_names_the_frontend_reads(
 
 
 def test_records_a_field_before_the_document_is_chosen(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     # "an SLA with 99.9% uptime" settles the document and gives an answer in the
     # same breath; asking again for what was just said is the rudeness the chat
@@ -143,16 +144,16 @@ def test_records_a_field_before_the_document_is_chosen(
         updates={"targetUptime": "99.9%"},
     )
 
-    values = post(client).json()["values"]
+    values = post(signed_in_client).json()["values"]
 
     assert values["fields"]["targetUptime"] == "99.9%"
 
 
 def test_sends_the_conversation_and_the_current_state_to_the_model(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     post(
-        client,
+        signed_in_client,
         messages=[
             {"role": "assistant", "content": "Who are the parties?"},
             {"role": "user", "content": "Acme and Globex"},
@@ -172,9 +173,9 @@ def test_sends_the_conversation_and_the_current_state_to_the_model(
 
 
 def test_describes_the_catalogue_while_no_document_is_chosen(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    post(client)
+    post(signed_in_client)
 
     instructions = fake_llm.calls[0]["messages"][0]["content"]
     assert "service-level-agreement" in instructions
@@ -182,9 +183,9 @@ def test_describes_the_catalogue_while_no_document_is_chosen(
 
 
 def test_describes_only_the_chosen_document_once_one_is_settled(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    post(client, values={"documentType": "service-level-agreement"})
+    post(signed_in_client, values={"documentType": "service-level-agreement"})
 
     instructions = fake_llm.calls[0]["messages"][0]["content"]
     assert "Target Uptime" in instructions
@@ -193,9 +194,9 @@ def test_describes_only_the_chosen_document_once_one_is_settled(
 
 
 def test_asks_cerebras_for_structured_output(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    post(client, values={"documentType": "service-level-agreement"})
+    post(signed_in_client, values={"documentType": "service-level-agreement"})
 
     call = fake_llm.calls[0]
     assert call["model"] == "openrouter/openai/gpt-oss-120b"
@@ -206,20 +207,35 @@ def test_asks_cerebras_for_structured_output(
 
 
 def test_makes_exactly_one_model_call_per_turn(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
     # The reply and the document choice come from one completion. A second call
     # here would mean a classification round trip crept back in.
-    post(client)
+    post(signed_in_client)
     assert len(fake_llm.calls) == 1
 
 
 def test_says_so_when_the_assistant_is_not_configured(
     unconfigured_client: TestClient,
 ) -> None:
+    # Signed in, so the 503 is about the missing key rather than the session.
+    unconfigured_client.post("/api/auth/signup", json=TEST_ACCOUNT)
+
     response = post(unconfigured_client)
+
     assert response.status_code == 503
     assert "OPENROUTER_API_KEY" in response.json()["detail"]
+
+
+def test_refuses_a_stranger_before_it_ever_reaches_the_model(
+    client: TestClient, fake_llm: FakeCompletion
+) -> None:
+    # A turn spends real money on the deployment's key. Anyone who finds the
+    # URL must not be able to do that, and the check has to come first.
+    response = post(client)
+
+    assert response.status_code == 401
+    assert fake_llm.calls == []
 
 
 def test_health_still_works_without_a_key(unconfigured_client: TestClient) -> None:
@@ -228,14 +244,14 @@ def test_health_still_works_without_a_key(unconfigured_client: TestClient) -> No
 
 
 def test_reports_a_provider_failure_without_leaking_it(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    signed_in_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def explode(**_: Any) -> Any:
         raise RuntimeError("connection reset by peer; key=sk-secret")
 
     monkeypatch.setattr(agent, "completion", explode)
 
-    response = post(client)
+    response = post(signed_in_client)
 
     assert response.status_code == 502
     detail = response.json()["detail"]
@@ -244,7 +260,7 @@ def test_reports_a_provider_failure_without_leaking_it(
 
 
 def test_reports_unusable_model_output(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    signed_in_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def nonsense(**_: Any) -> Any:
         message = type("Message", (), {"content": "I'd rather not use JSON."})()
@@ -253,23 +269,23 @@ def test_reports_unusable_model_output(
 
     monkeypatch.setattr(agent, "completion", nonsense)
 
-    response = post(client)
+    response = post(signed_in_client)
 
     assert response.status_code == 502
     assert "unexpected" in response.json()["detail"]
 
 
 def test_rejects_an_empty_conversation(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    response = client.post("/api/chat", json={"messages": []})
+    response = signed_in_client.post("/api/chat", json={"messages": []})
     assert response.status_code == 422
 
 
 def test_starts_from_nothing_captured_when_no_values_are_sent(
-    client: TestClient, fake_llm: FakeCompletion
+    signed_in_client: TestClient, fake_llm: FakeCompletion
 ) -> None:
-    response = client.post(
+    response = signed_in_client.post(
         "/api/chat", json={"messages": [{"role": "user", "content": "Hi"}]}
     )
 
