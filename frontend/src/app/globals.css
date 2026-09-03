@@ -1,8 +1,60 @@
 @import "tailwindcss";
 
+/*
+ * Surfaces and text, defined as CSS variables so they can answer to the
+ * colour scheme, then handed to Tailwind through `@theme inline`.
+ *
+ * The point of doing it this way is that `bg-surface` or `text-ink` is already
+ * correct in both schemes, so components stop carrying a `dark:` twin for every
+ * background, border and paragraph. Before PL-7 there were 47 hand-written
+ * slate/sky classes doing that job by hand, and they disagreed with each other.
+ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* The app itself. */
+  --canvas: #f4f6f9;
+  --surface: #ffffff;
+  --surface-sunken: #f8fafc;
+  --line: #e2e7ef;
+  --line-strong: #cbd4e1;
+  --ink: #101828;
+  --ink-soft: #55607a;
+  --ink-faint: #7c869b;
+
+  /*
+   * The agreement. Deliberately not the brand palette: a contract printed in
+   * corporate purple reads as marketing, not as something you would sign. This
+   * is paper and ink, and it stays that way in both schemes.
+   */
+  --paper: #fffefb;
+  --paper-ink: #1a1a17;
+  --paper-soft: #5d5f5a;
+  --paper-line: #ddd9cd;
+  --paper-mark: #fdf1cf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+
+    --canvas: #0b1120;
+    --surface: #111a2c;
+    --surface-sunken: #0e1626;
+    --line: #22304a;
+    --line-strong: #33456a;
+    --ink: #e8edf7;
+    --ink-soft: #9dabc4;
+    --ink-faint: #7c88a0;
+
+    --paper: #14150f;
+    --paper-ink: #ece9dd;
+    --paper-soft: #a8a698;
+    --paper-line: #3a3a2f;
+    --paper-mark: #4a3f18;
+  }
 }
 
 @theme inline {
@@ -10,6 +62,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-soft: var(--paper-soft);
+  --color-paper-line: var(--paper-line);
+  --color-paper-mark: var(--paper-mark);
 }
 
 /*
@@ -17,9 +84,7 @@
  * reachable as ordinary utilities -- `bg-brand-navy`, `text-brand-gray` -- and
  * the hex values live in exactly one place.
  *
- * These dress the product chrome: the login screen and the signed-in shell.
- * The Mutual NDA tool inside the shell keeps its own styling for now; restyling
- * it is a product change, and PL-4 is foundation only.
+ * Fixed rather than scheme-aware: these are the brand, and navy is navy.
  */
 @theme {
   --color-brand-yellow: #ecad0a;
@@ -29,15 +94,20 @@
   --color-brand-gray: #888888;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/*
+ * Everything focusable gets the same visible ring, so no control can be added
+ * without one. `:focus-visible` rather than `:focus` keeps it off mouse clicks
+ * while keeping it for keyboard users, which is who needs it.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand-blue);
+    outline-offset: 2px;
+  }
 }

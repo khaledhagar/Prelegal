@@ -1,5 +1,8 @@
 """The chat endpoint.
 
+Signed in only: a turn spends real money against the deployment's OpenRouter
+key, so it is not something a stranger who finds the URL gets to do.
+
 Stateless: the browser keeps the transcript and the captured values, and sends
 both with every turn. There is no authenticated user to own a conversation yet and
 the database does not survive a restart, so storing it here would be pretending.
@@ -11,13 +14,15 @@ from fastapi import APIRouter, HTTPException
 
 from app.chat.agent import ChatUnavailable, respond
 from app.chat.models import ChatRequest, ChatResponse
-from app.dependencies import SettingsDep
+from app.dependencies import CurrentUser, SettingsDep
 
 router = APIRouter(tags=["chat"])
 
 
 @router.post("/chat")
-def chat(request: ChatRequest, settings: SettingsDep) -> ChatResponse:
+def chat(
+    request: ChatRequest, user: CurrentUser, settings: SettingsDep
+) -> ChatResponse:
     if not settings.chat_enabled:
         raise HTTPException(
             status_code=503,

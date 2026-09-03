@@ -74,3 +74,46 @@ def unconfigured_client(database_path: Path, static_dir: Path) -> Iterator[TestC
     )
     with TestClient(app) as test_client:
         yield test_client
+
+
+#: The account every signed-in test uses.
+TEST_ACCOUNT = {
+    "name": "Ada Lovelace",
+    "email": "ada@acme.com",
+    "password": "correct-horse-battery",
+}
+
+
+@pytest.fixture
+def signed_in_client(client: TestClient) -> TestClient:
+    """
+    The app with a registered user already signed in.
+
+    `TestClient` keeps a cookie jar, so signing up once here leaves every later
+    request in the test carrying the session -- the same way a browser would.
+    """
+    response = client.post("/api/auth/signup", json=TEST_ACCOUNT)
+    assert response.status_code == 201, response.text
+    return client
+
+
+@pytest.fixture
+def other_client(client: TestClient) -> TestClient:
+    """
+    A second signed-in user sharing the first one's database.
+
+    Same app, its own cookie jar -- which is what lets a test check that one
+    user cannot reach another's documents. Built without re-entering the
+    lifespan, because that would rebuild the database and delete user one.
+    """
+    test_client = TestClient(client.app)
+    response = test_client.post(
+        "/api/auth/signup",
+        json={
+            "name": "Grace Hopper",
+            "email": "grace@navy.mil",
+            "password": "another-good-one",
+        },
+    )
+    assert response.status_code == 201, response.text
+    return test_client

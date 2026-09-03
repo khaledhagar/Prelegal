@@ -11,6 +11,7 @@
  * on its own has no /api to call.
  */
 
+import { ApiError, postJson } from "@/lib/api";
 import type { DocumentValues } from "@/lib/documents/types";
 
 export type ChatRole = "user" | "assistant";
@@ -45,7 +46,13 @@ export type ChatTurn = {
   values: DocumentValues;
 };
 
-/** Thrown with a message already written for someone to read on screen. */
+/**
+ * Thrown with a message already written for someone to read on screen.
+ *
+ * Kept as its own type so the chat UI can tell "the assistant is unavailable"
+ * apart from any other failure, and re-thrown from `ApiError` rather than
+ * replacing it -- `sendChat` is the only caller that needs the distinction.
+ */
 export class ChatError extends Error {}
 
 const FALLBACK_ERROR =
@@ -55,29 +62,18 @@ export async function sendChat(
   messages: ChatMessage[],
   values: DocumentValues,
 ): Promise<ChatTurn> {
-  let response: Response;
   try {
-    response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, values }),
-    });
-  } catch {
-    // Offline, or no backend at all -- `fetch` rejects rather than returning.
-    throw new ChatError(FALLBACK_ERROR);
+    return await postJson<ChatTurn>(
+      "/api/chat",
+      { messages, values },
+      FALLBACK_ERROR,
+    );
+  } catch (error) {
+    // A lost session is not an assistant problem, and the workspace handles it
+    // by sending the user to sign in again -- so it travels on unchanged.
+    if (error instanceof ApiError && error.isUnauthenticated) throw error;
+    throw new ChatError(
+      error instanceof Error ? error.message : FALLBACK_ERROR,
+    );
   }
-
-  if (!response.ok) {
-    // The backend writes `detail` for a person to read; anything else means we
-    // are talking to something that is not our API.
-    const detail = await response
-      .json()
-      .then((body: { detail?: unknown }) =>
-        typeof body.detail === "string" ? body.detail : null,
-      )
-      .catch(() => null);
-    throw new ChatError(detail ?? FALLBACK_ERROR);
-  }
-
-  return (await response.json()) as ChatTurn;
 }

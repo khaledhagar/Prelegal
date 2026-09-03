@@ -1,121 +1,230 @@
 "use client";
 
 /**
- * The sign-in screen.
+ * Sign in, or create an account.
  *
- * Nothing here authenticates anybody: PL-4 asks for a fake login that simply
- * brings the user through to the platform. The form collects a name and an
- * email so the shell has someone to greet, hands them to `startSession`, and
- * navigates on. The screen says so plainly rather than implying a security
- * boundary that does not exist.
+ * Both live on one screen because they are the same three fields and one
+ * decision; sending someone to a second page to type the same email again is a
+ * small rudeness that adds up.
  */
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/Wordmark";
-import { startSession, useSession } from "@/lib/session";
+import { signIn, signUp, useSession } from "@/lib/session";
+
+type Mode = "signin" | "signup";
 
 const fieldClass =
-  "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm " +
-  "outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/30 " +
-  "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+  "w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink " +
+  "shadow-sm outline-none transition placeholder:text-ink-faint " +
+  "focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/25";
 
-export default function SignIn() {
+const labelClass = "block text-sm font-medium text-ink";
+
+export default function SignInPage() {
   const router = useRouter();
   const { session, hydrated } = useSession();
+
+  const [mode, setMode] = useState<Mode>("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  /*
-   * The one way off this screen, for both the visitor who just signed in and
-   * the one who arrived already signed in. Submitting only starts the session
-   * and lets this fire, so there is a single navigation path rather than two
-   * that race. `replace` rather than `push`: going back to the login screen
-   * from inside the app would only bounce straight here again.
-   */
   useEffect(() => {
     if (hydrated && session) router.replace("/app");
   }, [hydrated, session, router]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    startSession({ name: name.trim(), email: email.trim() });
+  function switchTo(next: Mode) {
+    setMode(next);
+    setError(null);
   }
 
-  return (
-    <div className="flex min-h-screen flex-col bg-white lg:flex-row dark:bg-slate-950">
-      {/* Brand panel. Purely decorative, so it collapses away on small screens. */}
-      <aside className="bg-brand-navy px-6 py-10 lg:flex lg:w-2/5 lg:flex-col lg:justify-between lg:px-12 lg:py-14">
-        <Wordmark tone="onDark" className="text-2xl" />
-        <div className="mt-8 hidden lg:mt-0 lg:block">
-          <h2 className="text-3xl font-semibold leading-tight text-white">
-            Agreements worth signing,
-            <br />
-            drafted in minutes.
-          </h2>
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">
-            Start from proven templates, fill in what matters, and download a
-            complete document.
-          </p>
-        </div>
-        <p className="mt-8 hidden text-xs text-slate-400 lg:mt-0 lg:block">
-          Templates by Common Paper, used under CC BY 4.0.
-        </p>
-      </aside>
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
 
+    setPending(true);
+    setError(null);
+    try {
+      if (mode === "signup") {
+        await signUp({ name: name.trim(), email: email.trim(), password });
+      } else {
+        await signIn({ email: email.trim(), password });
+      }
+      router.replace("/app");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Something went wrong.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const isSignUp = mode === "signup";
+
+  return (
+    <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
+      {/* Brand panel. Hidden on small screens, where it would push the form
+          below the fold for no benefit. */}
+      <section className="bg-brand-navy px-6 py-10 lg:flex lg:w-2/5 lg:flex-col lg:justify-between lg:px-12 lg:py-14">
+        <Wordmark tone="onDark" className="text-2xl" />
+
+        <div className="mt-8 lg:mt-0">
+          <h1 className="text-3xl font-semibold leading-tight text-white">
+            Draft an agreement by talking it through.
+          </h1>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
+            Eleven Common Paper agreements, filled in by an assistant that asks
+            about one thing at a time. Watch the document build as you answer,
+            then download it as a PDF.
+          </p>
+
+          <ul className="mt-8 space-y-3 text-sm text-white/80">
+            {[
+              "NDAs, cloud services, DPAs, SLAs and more",
+              "A live preview that fills in as you talk",
+              "Keep your drafts and come back to them",
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-yellow"
+                />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="mt-10 hidden text-xs leading-relaxed text-white/50 lg:block">
+          Prelegal produces drafts, not legal advice. Every document should be
+          reviewed by a qualified lawyer before anyone signs it.
+        </p>
+      </section>
+
+      {/* Form panel. */}
       <main className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-semibold tracking-tight text-brand-navy dark:text-white">
-            Sign in
-          </h1>
-          <p className="mt-2 text-sm text-brand-gray">
-            Tell us who you are and we&apos;ll take you to your documents.
+          <h2 className="text-2xl font-semibold tracking-tight text-brand-navy dark:text-white">
+            {isSignUp ? "Create your account" : "Welcome back"}
+          </h2>
+          <p className="mt-1.5 text-sm text-ink-soft">
+            {isSignUp
+              ? "A name, an email and a password is all it takes."
+              : "Sign in to pick up where you left off."}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <div className="space-y-1.5">
-              <label htmlFor="signin-name" className="block text-sm font-medium">
-                Full name
-              </label>
-              <input
-                id="signin-name"
-                className={fieldClass}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Ada Lovelace"
-                autoComplete="name"
-                required
-              />
-            </div>
+          <div
+            role="tablist"
+            aria-label="Sign in or create an account"
+            className="mt-6 grid grid-cols-2 gap-1 rounded-lg bg-surface-sunken p-1"
+          >
+            {(
+              [
+                ["signin", "Sign in"],
+                ["signup", "Create account"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={mode === value}
+                onClick={() => switchTo(value)}
+                className={
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition " +
+                  (mode === value
+                    ? "bg-surface text-brand-navy shadow-sm dark:text-white"
+                    : "text-ink-soft hover:text-ink")
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="signin-email" className="block text-sm font-medium">
-                Work email
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+            {isSignUp ? (
+              <div>
+                <label htmlFor="signin-name" className={labelClass}>
+                  Your name
+                </label>
+                <input
+                  id="signin-name"
+                  className={`mt-1.5 ${fieldClass}`}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  autoComplete="name"
+                  placeholder="Ada Lovelace"
+                  required
+                />
+              </div>
+            ) : null}
+
+            <div>
+              <label htmlFor="signin-email" className={labelClass}>
+                Email
               </label>
               <input
                 id="signin-email"
                 type="email"
-                className={fieldClass}
+                className={`mt-1.5 ${fieldClass}`}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="ada@acme.com"
                 autoComplete="email"
+                placeholder="you@company.com"
                 required
               />
             </div>
 
+            <div>
+              <label htmlFor="signin-password" className={labelClass}>
+                Password
+              </label>
+              <input
+                id="signin-password"
+                type="password"
+                className={`mt-1.5 ${fieldClass}`}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                placeholder={isSignUp ? "At least 8 characters" : "••••••••"}
+                required
+              />
+            </div>
+
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/50 dark:text-red-200"
+              >
+                {error}
+              </p>
+            ) : null}
+
             <button
               type="submit"
-              className="w-full rounded-md bg-brand-purple px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-brand-purple/40"
+              disabled={pending}
+              className="w-full rounded-lg bg-brand-purple px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Continue to Prelegal
+              {pending
+                ? "One moment…"
+                : isSignUp
+                  ? "Create account"
+                  : "Sign in"}
             </button>
           </form>
 
-          <p className="mt-6 rounded-md border border-brand-yellow/40 bg-brand-yellow/10 px-3 py-2 text-xs leading-relaxed text-brand-navy dark:text-brand-yellow">
-            <strong className="font-semibold">Placeholder sign-in.</strong> No
-            account is created and no password is checked — whatever you type
-            stays in this browser. Real accounts arrive in a later release.
+          {/* The database is rebuilt on every server start, so an account is
+              real but not durable. Better said here than discovered. */}
+          <p className="mt-6 rounded-lg border border-brand-yellow/40 bg-brand-yellow/10 px-3 py-2 text-xs leading-relaxed text-brand-navy dark:text-brand-yellow">
+            This is a demo deployment. Your account and saved documents live
+            only until the server restarts, and everything is wiped when it
+            does.
           </p>
         </div>
       </main>

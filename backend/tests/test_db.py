@@ -37,7 +37,8 @@ def test_discards_everything_from_the_previous_run(database_path: Path) -> None:
     init_db(database_path)
     with transaction(database_path) as connection:
         connection.execute(
-            "INSERT INTO users (email, name) VALUES ('ada@acme.com', 'Ada Lovelace')"
+            "INSERT INTO users (email, name, password_hash)"
+            " VALUES ('ada@acme.com', 'Ada Lovelace', 'x')"
         )
 
     init_db(database_path)
@@ -61,7 +62,8 @@ def test_rows_are_addressable_by_column_name(database_path: Path) -> None:
     init_db(database_path)
     with transaction(database_path) as connection:
         connection.execute(
-            "INSERT INTO users (email, name) VALUES ('ada@acme.com', 'Ada Lovelace')"
+            "INSERT INTO users (email, name, password_hash)"
+            " VALUES ('ada@acme.com', 'Ada Lovelace', 'x')"
         )
         row = connection.execute("SELECT email, name FROM users").fetchone()
     assert row["email"] == "ada@acme.com"
@@ -72,9 +74,11 @@ def test_email_is_unique(database_path: Path) -> None:
     init_db(database_path)
     with transaction(database_path) as connection:
         connection.execute(
-            "INSERT INTO users (email, name) VALUES ('ada@acme.com', 'Ada Lovelace')"
+            "INSERT INTO users (email, name, password_hash)"
+            " VALUES ('ada@acme.com', 'Ada Lovelace', 'x')"
         )
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(
-                "INSERT INTO users (email, name) VALUES ('ada@acme.com', 'Ada Byron')"
+                "INSERT INTO users (email, name, password_hash)"
+                " VALUES ('ada@acme.com', 'Ada Byron', 'x')"
             )

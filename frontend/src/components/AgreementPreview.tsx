@@ -1,6 +1,11 @@
 /**
  * Renders the shared document model to HTML.
  *
+ * The colours here are paper and ink, not the brand palette: an agreement
+ * printed in corporate purple reads as marketing rather than as something
+ * anyone would sign. The tokens come from globals.css so both colour schemes
+ * are handled without a `dark:` twin on every rule.
+ *
  * The PDF renderer in src/pdf/AgreementDocument.tsx walks the same model, so the two
  * outputs stay in step. When you add a block kind, both renderers must handle
  * it: the assertNever call in each switch's default branch fails to compile
@@ -25,7 +30,7 @@ function InlineRuns({ content }: { content: Inline[] }) {
             return (
               <span
                 key={index}
-                className="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 dark:text-slate-300 dark:decoration-slate-600"
+                className="font-medium underline decoration-paper-line underline-offset-2"
                 title="Defined on the cover page"
               >
                 {run.text}
@@ -38,20 +43,20 @@ function InlineRuns({ content }: { content: Inline[] }) {
                 href={run.href}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sky-700 underline underline-offset-2 dark:text-sky-400"
+                className="underline underline-offset-2 decoration-paper-soft hover:decoration-paper-ink"
               >
                 {run.text}
               </a>
             );
           case "value":
             return run.filled ? (
-              <span key={index} className="bg-amber-100/70 px-0.5 dark:bg-amber-400/20">
+              <span key={index} className="bg-paper-mark px-0.5">
                 {run.text}
               </span>
             ) : (
               <span
                 key={index}
-                className="rounded bg-slate-200 px-1 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                className="rounded border border-dashed border-paper-line px-1 text-paper-soft"
               >
                 {run.text}
               </span>
@@ -68,21 +73,21 @@ function BlockView({ block }: { block: Block }) {
   switch (block.kind) {
     case "title":
       return (
-        <h2 className="mt-8 border-b border-slate-300 pb-2 text-xl font-semibold tracking-tight first:mt-0 dark:border-slate-700">
+        <h2 className="mt-8 border-b border-paper-line pb-2 text-xl font-semibold tracking-tight first:mt-0">
           {block.text}
         </h2>
       );
 
     case "heading":
       return (
-        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+        <h3 className="mt-6 text-xs font-semibold uppercase tracking-[0.08em] text-paper-soft">
           {block.text}
         </h3>
       );
 
     case "label":
       return (
-        <p className="text-xs italic text-slate-500 dark:text-slate-500">
+        <p className="text-xs italic text-paper-soft">
           {block.text}
         </p>
       );
@@ -96,7 +101,7 @@ function BlockView({ block }: { block: Block }) {
 
     case "section":
       return (
-        <h3 className="mt-6 text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <h3 className="mt-7 text-sm font-semibold text-paper-ink">
           {block.marker} {block.text}
         </h3>
       );
@@ -120,7 +125,7 @@ function BlockView({ block }: { block: Block }) {
           <span aria-hidden className="select-none font-mono">
             {block.checked ? "[x]" : "[ ]"}
           </span>
-          <span className={block.checked ? "" : "text-slate-400 dark:text-slate-600"}>
+          <span className={block.checked ? "" : "text-paper-soft"}>
             <InlineRuns content={block.content} />
           </span>
         </p>
@@ -132,11 +137,11 @@ function BlockView({ block }: { block: Block }) {
           <table className="w-full min-w-[32rem] border-collapse text-sm">
             <thead>
               <tr>
-                <th className="w-40 border border-slate-300 bg-slate-50 p-2 text-left font-semibold dark:border-slate-700 dark:bg-slate-800" />
+                <th className="w-40 border border-paper-line bg-paper-mark/30 p-2 text-left font-semibold" />
                 {block.parties.map((party, index) => (
                   <th
                     key={index}
-                    className="border border-slate-300 bg-slate-50 p-2 text-left font-semibold dark:border-slate-700 dark:bg-slate-800"
+                    className="border border-paper-line bg-paper-mark/30 p-2 text-left font-semibold"
                   >
                     {party}
                   </th>
@@ -146,18 +151,18 @@ function BlockView({ block }: { block: Block }) {
             <tbody>
               {block.rows.map((row) => (
                 <tr key={row.label}>
-                  <th className="border border-slate-300 p-2 text-left font-medium dark:border-slate-700">
+                  <th className="border border-paper-line p-2 text-left font-medium">
                     {row.label}
                   </th>
                   {row.values.map((cell, index) => (
                     <td
                       key={index}
-                      className="border border-slate-300 p-2 align-top dark:border-slate-700"
+                      className="border border-paper-line p-2 align-top"
                     >
                       {cell.trim().length > 0 ? (
                         <span className="whitespace-pre-wrap">{cell}</span>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-700">&nbsp;</span>
+                        <span className="text-paper-line">&nbsp;</span>
                       )}
                     </td>
                   ))}
@@ -170,7 +175,7 @@ function BlockView({ block }: { block: Block }) {
 
     case "footnote":
       return (
-        <p className="mt-8 border-t border-slate-200 pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-500">
+        <p className="mt-8 border-t border-paper-line pt-3 text-xs text-paper-soft">
           <InlineRuns content={block.content} />
         </p>
       );
@@ -184,7 +189,7 @@ function BlockView({ block }: { block: Block }) {
 
 export function AgreementPreview({ document }: { document: Agreement }) {
   return (
-    <article className="text-sm text-slate-900 dark:text-slate-100">
+    <article className="font-serif text-[0.9375rem] leading-relaxed text-paper-ink">
       {document.blocks.map((block, index) => (
         <BlockView key={index} block={block} />
       ))}
