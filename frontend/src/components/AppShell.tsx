@@ -48,8 +48,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-canvas">
       <header className="sticky top-0 z-20 bg-brand-navy shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex items-center gap-8">
+        {/*
+          `flex-wrap` is the part that matters: the wordmark, both nav links and
+          the account block want about 423px, which is more than a 390px phone
+          has, and a rigid single row answers that by pushing the sign-out
+          button past the right edge and scrolling the whole page sideways.
+          Wrapping puts the account block on a second line instead. The tighter
+          padding and gaps below `sm` are what usually keep it to one row; the
+          wrap is what guarantees it can never overflow again, whatever a
+          future nav item or a long name does.
+        */}
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-4 sm:gap-8">
             <Wordmark tone="onDark" className="text-lg" />
 
             <nav aria-label="Sections" className="flex items-center gap-1">
@@ -83,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             <span
               aria-hidden="true"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-xs font-semibold text-white"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-semibold text-white"
             >
               {initials(session.name)}
             </span>
@@ -94,7 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               type="button"
               onClick={handleSignOut}
-              className="rounded-md border border-white/25 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/10"
+              className="shrink-0 whitespace-nowrap rounded-md border border-white/25 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/10"
             >
               Sign out
             </button>

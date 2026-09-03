@@ -81,6 +81,12 @@ the database holds only scrypt hashes and SHA-256 session fingerprints. A
 there is no `dangerouslySetInnerHTML` anywhere in `frontend/src`, and adding
 one is how that would stop being true.
 
+Two layout faults came out of that browser pass, both invisible to the test
+suite and both fixed: `Download PDF` and `Save to my documents` sat below the
+bottom edge of a sticky column and could not be clicked at all, and the app
+header ran 8px past the right edge of a phone and scrolled every page sideways.
+All three routes are now checked clean from 320px to 1440px.
+
 ### Built
 
 | Area | State | Ticket |
@@ -168,6 +174,16 @@ one is how that would stop being true.
   fixed height again is how both buttons became unclickable on any window
   shorter than about 1145px. jsdom has no layout, so the 334 frontend tests
   cannot catch this — it only shows up in a real browser.
+
+- The header bar in `AppShell` carries `flex-wrap`, and the account block is
+  allowed to drop to a second line. The wordmark, both nav links and that block
+  want about 423px; a 390px phone has 375px to give. Held in one rigid row the
+  sign-out button crossed the right edge and took the whole document with it,
+  so every page scrolled sideways. The tighter `px-4` and `gap-4` below `sm`
+  are what usually avoid the wrap; the wrap is what makes overflow impossible
+  regardless, which is the property to keep when adding a nav item. The avatar
+  and the sign-out button are `shrink-0` — without it flexbox squeezed the
+  avatar from 32px to 23px and served an oval.
 
 - `frontend/src/pdf/AgreementDocument.tsx` positions its page-number footer with
   `top` (`FOOTER_FROM_TOP`), not `bottom`. A `fixed` element positioned with
