@@ -1,13 +1,13 @@
 /**
  * Renders the shared document model to HTML.
  *
- * The PDF renderer in src/pdf/NdaDocument.tsx walks the same model, so the two
+ * The PDF renderer in src/pdf/AgreementDocument.tsx walks the same model, so the two
  * outputs stay in step. When you add a block kind, both renderers must handle
  * it: the assertNever call in each switch's default branch fails to compile
  * until you do. That guard is load-bearing -- without it a missing case just
  * returns undefined, which React accepts, and the content vanishes silently.
  */
-import { assertNever, type Block, type Inline, type NdaDocument } from "@/lib/document";
+import { assertNever, type Agreement, type Block, type Inline } from "@/lib/document";
 
 function InlineRuns({ content }: { content: Inline[] }) {
   return (
@@ -94,10 +94,22 @@ function BlockView({ block }: { block: Block }) {
         </p>
       );
 
-    case "clause":
+    case "section":
       return (
-        <p className="mt-4 leading-relaxed">
-          <span className="mr-1 font-semibold">{block.number}.</span>
+        <h3 className="mt-6 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {block.marker} {block.text}
+        </h3>
+      );
+
+    case "clause":
+      // Nested clauses indent one step per level; the agreements that use them
+      // go three deep at most, so a fixed scale covers every template.
+      return (
+        <p
+          className="mt-4 leading-relaxed"
+          style={{ marginLeft: `${block.depth * 1.25}rem` }}
+        >
+          <span className="mr-1 font-semibold">{block.marker}</span>
           <InlineRuns content={block.content} />
         </p>
       );
@@ -170,7 +182,7 @@ function BlockView({ block }: { block: Block }) {
   }
 }
 
-export function NdaPreview({ document }: { document: NdaDocument }) {
+export function AgreementPreview({ document }: { document: Agreement }) {
   return (
     <article className="text-sm text-slate-900 dark:text-slate-100">
       {document.blocks.map((block, index) => (

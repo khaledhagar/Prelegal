@@ -1,7 +1,7 @@
 """The chat endpoint.
 
-Stateless: the browser keeps the transcript and the cover page, and sends both
-with every turn. There is no authenticated user to own a conversation yet and
+Stateless: the browser keeps the transcript and the captured values, and sends
+both with every turn. There is no authenticated user to own a conversation yet and
 the database does not survive a restart, so storing it here would be pretending.
 """
 
@@ -31,7 +31,7 @@ def chat(request: ChatRequest, settings: SettingsDep) -> ChatResponse:
         raise HTTPException(status_code=422, detail="Send at least one message.")
 
     try:
-        return respond(request.messages, request.fields)
+        return respond(request.messages, request.values)
     except ChatUnavailable as error:
         # 502: we are up, the thing we depend on is not. The message is already
         # written for a human to read in a chat bubble.

@@ -1,8 +1,12 @@
 """The LLM call.
 
 LiteLLM to OpenRouter, pinned to Cerebras as the inference provider, with
-Structured Outputs so the reply and the field updates come back as one parsed
-object rather than prose we would have to scrape.
+Structured Outputs so the reply, the chosen document and the field updates come
+back as one parsed object rather than prose we would have to scrape.
+
+Exactly one completion per turn. Deciding which agreement to draft rides in the
+same schema as the reply rather than in a separate classification call: Cerebras
+is fast enough that a second round trip would be the only thing anyone noticed.
 """
 
 from __future__ import annotations
@@ -12,8 +16,9 @@ from datetime import date
 
 from litellm import completion
 
+from app.chat.documents import get_document
 from app.chat.merge import merge
-from app.chat.models import AssistantTurn, ChatMessage, ChatResponse, NdaFields
+from app.chat.models import ChatMessage, ChatResponse, DocumentValues, turn_model
 from app.chat.prompt import build_messages
 
 logger = logging.getLogger(__name__)
@@ -26,18 +31,23 @@ class ChatUnavailable(RuntimeError):
     """The assistant could not be reached. Carries a user-facing message."""
 
 
-def respond(messages: list[ChatMessage], fields: NdaFields) -> ChatResponse:
-    """One turn: what the assistant says, and the cover page after its edits."""
+def respond(messages: list[ChatMessage], values: DocumentValues) -> ChatResponse:
+    """One turn: what the assistant says, and the values after its edits."""
+    document = get_document(values.document_type)
+    schema = turn_model(document)
+
     history = [
         {"role": message.role, "content": message.content} for message in messages
     ]
-    request = build_messages(history, fields, today=date.today().isoformat())
+    request = build_messages(
+        history, values, document, today=date.today().isoformat()
+    )
 
     try:
         response = completion(
             model=MODEL,
             messages=request,
-            response_format=AssistantTurn,
+            response_format=schema,
             reasoning_effort="low",
             extra_body=EXTRA_BODY,
         )
@@ -51,11 +61,11 @@ def respond(messages: list[ChatMessage], fields: NdaFields) -> ChatResponse:
         ) from error
 
     try:
-        turn = AssistantTurn.model_validate_json(content)
+        turn = schema.model_validate_json(content)
     except Exception as error:
         logger.exception("chat completion returned unusable content: %r", content)
         raise ChatUnavailable(
             "The assistant returned something unexpected. Please try again."
         ) from error
 
-    return ChatResponse(reply=turn.reply, fields=merge(fields, turn.updates))
+    return ChatResponse(reply=turn.reply, values=merge(values, turn))

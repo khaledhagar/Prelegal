@@ -1,115 +1,155 @@
-"""Applying the assistant's patch.
+"""The merge rules.
 
-The rule that matters: the assistant can fill a field in, but must not quietly
-empty one. Everything here is a way of checking that.
+One place decides what the assistant is allowed to change, so it is worth
+pinning down precisely. The rule that matters most: a patch can fill a field in
+but can never blank one out. Losing the governing law from a signed agreement
+because the model half-remembered a turn is not a trade worth making.
 """
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.chat.documents import get_document
 from app.chat.merge import merge
-from app.chat.models import NdaFields, NdaFieldUpdates, Party, PartyUpdates
+from app.chat.models import DocumentValues, Party, turn_model
 
 
-def test_sets_a_field_it_learned() -> None:
-    merged = merge(NdaFields(), NdaFieldUpdates(governing_law="Delaware"))
-    assert merged.governing_law == "Delaware"
-
-
-def test_leaves_untouched_fields_alone() -> None:
-    before = NdaFields(governing_law="Delaware", purpose="Evaluating a partnership")
-
-    merged = merge(before, NdaFieldUpdates(jurisdiction="New Castle, DE"))
-
-    assert merged.governing_law == "Delaware"
-    assert merged.purpose == "Evaluating a partnership"
-    assert merged.jurisdiction == "New Castle, DE"
-
-
-def test_null_means_no_change_not_clear() -> None:
-    before = NdaFields(governing_law="Delaware")
-    merged = merge(before, NdaFieldUpdates(governing_law=None))
-    assert merged.governing_law == "Delaware"
-
-
-def test_a_blank_string_does_not_erase_an_answer() -> None:
-    # A careless model emitting "" must not cost the user a term they gave.
-    before = NdaFields(governing_law="Delaware")
-    merged = merge(before, NdaFieldUpdates(governing_law="   "))
-    assert merged.governing_law == "Delaware"
-
-
-def test_overwrites_when_the_user_changes_their_mind() -> None:
-    before = NdaFields(governing_law="Delaware")
-    merged = merge(before, NdaFieldUpdates(governing_law="New York"))
-    assert merged.governing_law == "New York"
-
-
-def test_merges_one_party_without_disturbing_the_other() -> None:
-    before = NdaFields(
-        party_one=Party(company="Acme, Inc.", print_name="Ada Lovelace"),
-        party_two=Party(company="Globex Corporation"),
+def patch(
+    document_type: str = "mutual-nda",
+    updates: dict[str, Any] | None = None,
+    **parties: Any,
+) -> Any:
+    schema = turn_model(get_document(document_type))
+    return schema(
+        reply="ok",
+        documentType=document_type,
+        updates=schema.model_fields["updates"].annotation(**(updates or {})),
+        **parties,
     )
 
-    merged = merge(
-        before,
-        NdaFieldUpdates(party_one=PartyUpdates(title="Chief Executive Officer")),
+
+def values(document_type: str = "mutual-nda", **fields: str) -> DocumentValues:
+    return DocumentValues(document_type=document_type, fields=dict(fields))
+
+
+def test_fills_in_a_field_the_model_learned() -> None:
+    result = merge(values(), patch(updates={"governingLaw": "Delaware"}))
+    assert result.fields["governingLaw"] == "Delaware"
+
+
+def test_leaves_a_field_alone_when_the_patch_says_nothing() -> None:
+    # null means "I learned nothing about this", not "clear it".
+    result = merge(
+        values(governingLaw="Delaware"), patch(updates={"jurisdiction": "New Castle"})
+    )
+    assert result.fields["governingLaw"] == "Delaware"
+
+
+def test_a_blank_never_erases_an_answer() -> None:
+    result = merge(values(governingLaw="Delaware"), patch(updates={"governingLaw": ""}))
+    assert result.fields["governingLaw"] == "Delaware"
+
+
+def test_whitespace_never_erases_an_answer() -> None:
+    result = merge(
+        values(governingLaw="Delaware"), patch(updates={"governingLaw": "   "})
+    )
+    assert result.fields["governingLaw"] == "Delaware"
+
+
+def test_trims_what_it_stores() -> None:
+    result = merge(values(), patch(updates={"governingLaw": "  Delaware  "}))
+    assert result.fields["governingLaw"] == "Delaware"
+
+
+def test_overwrites_an_answer_the_user_changed() -> None:
+    result = merge(values(governingLaw="Delaware"), patch(updates={"governingLaw": "New York"}))
+    assert result.fields["governingLaw"] == "New York"
+
+
+def test_does_not_mutate_what_it_was_given() -> None:
+    before = values(governingLaw="Delaware")
+    merge(before, patch(updates={"governingLaw": "New York"}))
+    assert before.fields["governingLaw"] == "Delaware"
+
+
+def test_merges_one_party_without_touching_the_other() -> None:
+    start = DocumentValues(
+        document_type="mutual-nda",
+        parties=[Party(company="Acme"), Party(company="Globex")],
     )
 
-    assert merged.party_one.company == "Acme, Inc."
-    assert merged.party_one.print_name == "Ada Lovelace"
-    assert merged.party_one.title == "Chief Executive Officer"
-    assert merged.party_two.company == "Globex Corporation"
+    result = merge(start, patch(partyOne={"printName": "Ada Lovelace"}))
+
+    assert result.parties[0].company == "Acme"
+    assert result.parties[0].print_name == "Ada Lovelace"
+    assert result.parties[1].company == "Globex"
+    assert result.parties[1].print_name == ""
 
 
-def test_a_null_party_leaves_that_party_untouched() -> None:
-    before = NdaFields(party_one=Party(company="Acme, Inc."))
-    merged = merge(before, NdaFieldUpdates(party_one=None))
-    assert merged.party_one.company == "Acme, Inc."
-
-
-def test_records_several_fields_from_one_answer() -> None:
-    # "Acme and Globex, Delaware law, one year" in a single message.
-    merged = merge(
-        NdaFields(),
-        NdaFieldUpdates(
-            governing_law="Delaware",
-            mnda_term="fixed",
-            mnda_term_years="1",
-            party_one=PartyUpdates(company="Acme, Inc."),
-            party_two=PartyUpdates(company="Globex Corporation"),
-        ),
+def test_a_blank_never_erases_a_party_detail() -> None:
+    start = DocumentValues(
+        document_type="mutual-nda", parties=[Party(company="Acme"), Party()]
     )
 
-    assert merged.governing_law == "Delaware"
-    assert merged.mnda_term_years == "1"
-    assert merged.party_one.company == "Acme, Inc."
-    assert merged.party_two.company == "Globex Corporation"
+    result = merge(start, patch(partyOne={"company": ""}))
+
+    assert result.parties[0].company == "Acme"
 
 
-def test_does_not_mutate_the_fields_it_was_given() -> None:
-    before = NdaFields(governing_law="Delaware")
-    merge(before, NdaFieldUpdates(governing_law="New York"))
-    assert before.governing_law == "Delaware"
-
-
-def test_choice_fields_accept_their_alternatives() -> None:
-    merged = merge(
-        NdaFields(),
-        NdaFieldUpdates(mnda_term="untilTerminated", confidentiality="perpetual"),
+def test_drops_a_field_the_chosen_agreement_does_not_have() -> None:
+    # The schema only names the document's own fields, so a stray key means the
+    # model improvised. A value nothing renders is worse than no value: it looks
+    # captured in the read-out and never reaches the document.
+    result = merge(
+        values("mutual-nda"),
+        patch("mutual-nda", updates={"governingLaw": "Delaware"}),
     )
-    assert merged.mnda_term == "untilTerminated"
-    assert merged.confidentiality == "perpetual"
+
+    assert set(result.fields) <= set(get_document("mutual-nda").field_keys)
 
 
-def test_serialises_to_the_names_the_frontend_uses() -> None:
-    # The frontend adopts this object wholesale, so the keys have to match
-    # NdaFormValues exactly.
-    payload = merge(
-        NdaFields(), NdaFieldUpdates(party_one=PartyUpdates(print_name="Ada"))
-    ).model_dump(by_alias=True)
+def test_adopts_the_document_the_turn_chooses() -> None:
+    result = merge(
+        DocumentValues(),
+        patch("service-level-agreement", updates={"targetUptime": "99.9%"}),
+    )
 
-    assert payload["governingLaw"] == ""
-    assert payload["mndaTermYears"] == ""
-    assert payload["effectiveDate"] == ""
-    assert payload["partyOne"]["printName"] == "Ada"
-    assert payload["partyTwo"]["noticeAddress"] == ""
+    assert result.document_type == "service-level-agreement"
+    assert result.fields["targetUptime"] == "99.9%"
+
+
+def test_keeps_the_document_when_the_turn_names_none() -> None:
+    schema = turn_model(get_document("mutual-nda"))
+    turn = schema(
+        reply="ok",
+        documentType="",
+        updates=schema.model_fields["updates"].annotation(),
+    )
+
+    assert merge(values("mutual-nda"), turn).document_type == "mutual-nda"
+
+
+def test_switching_agreement_keeps_the_answers_the_new_one_also_asks_for() -> None:
+    start = values("mutual-nda", governingLaw="Delaware", purpose="A deal")
+
+    result = merge(start, patch("pilot-agreement"))
+
+    assert result.document_type == "pilot-agreement"
+    # A Pilot Agreement asks for governing law too.
+    assert result.fields["governingLaw"] == "Delaware"
+    # It has no notion of an NDA's purpose, so that answer is forgotten rather
+    # than carried into a document that will never show it.
+    assert "purpose" not in result.fields
+
+
+def test_switching_agreement_keeps_the_parties() -> None:
+    start = DocumentValues(
+        document_type="mutual-nda",
+        parties=[Party(company="Acme"), Party(company="Globex")],
+    )
+
+    result = merge(start, patch("pilot-agreement"))
+
+    assert [party.company for party in result.parties] == ["Acme", "Globex"]

@@ -22,12 +22,21 @@ export type Block =
   /** A short caption under a heading, from the template's <label> elements. */
   | { kind: "label"; text: string }
   | { kind: "paragraph"; content: Inline[] }
-  /** A numbered clause: "1. **Introduction**. ..." */
-  | { kind: "clause"; number: number; content: Inline[] }
+  /**
+   * A numbered clause: "1. **Introduction**. ..." or, in the agreements that
+   * nest, "1.1 **Target Uptime.** ...". `marker` is the number as rendered and
+   * `depth` is how far it indents, 0 for a top-level clause.
+   */
+  | { kind: "clause"; marker: string; depth: number; content: Inline[] }
   /** A checkbox option, used by the term-selection sections. */
   | { kind: "option"; checked: boolean; content: Inline[] }
   /** The two-party signature block. */
   | { kind: "signatures"; rows: SignatureRow[]; parties: [string, string] }
+  /**
+   * A section heading inside the standard terms, e.g. "1. Uptime".
+   * Distinct from `heading`, which titles a cover-page section.
+   */
+  | { kind: "section"; marker: string; text: string }
   /** Fine print rendered smaller, e.g. the CC BY attribution. */
   | { kind: "footnote"; content: Inline[] };
 
@@ -37,7 +46,7 @@ export type SignatureRow = {
   values: [string, string];
 };
 
-export type NdaDocument = {
+export type Agreement = {
   blocks: Block[];
 };
 

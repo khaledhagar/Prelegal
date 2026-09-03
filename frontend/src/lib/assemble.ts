@@ -1,26 +1,30 @@
 /**
- * Assembles the complete Mutual NDA: a cover page built from the user's answers,
- * followed by the Common Paper Standard Terms reproduced verbatim.
+ * Assembles a complete agreement: a cover page built from the user's answers,
+ * followed by the Common Paper standard terms reproduced verbatim.
  *
- * The cover page is constructed here rather than parsed from
- * templates/mutual-nda-coverpage.md, because that file is a blank form -- its
- * bracketed placeholders and empty signature table exist to be replaced. The
- * headings, wording, and ordering below deliberately mirror it.
+ * The cover page is constructed here rather than parsed from a template.
+ * Only the Mutual NDA ships one (templates/mutual-nda-coverpage.md) and even
+ * that is a blank form -- its bracketed placeholders exist to be replaced. The
+ * other ten agreements have no cover page file at all: Common Paper leaves the
+ * Order Form, Key Terms, Business Terms or SOW for each party to draft. So we
+ * build one, grouping the fields the way the agreement's own variables are
+ * grouped.
  */
 import {
   splitParagraphs,
+  type Agreement,
   type Block,
   type Inline,
-  type NdaDocument,
   type SignatureRow,
 } from "./document";
 import { parseStandardTerms } from "./markdown";
-import {
-  type NdaFormValues,
-  formatEffectiveDate,
-  formatYears,
-} from "./form";
-import { coverPage as coverPageMarkdown, standardTerms } from "@/generated/mnda-template";
+import { groupLabel } from "./documents/registry";
+import type {
+  DocumentDefinition,
+  DocumentField,
+  DocumentValues,
+} from "./documents/types";
+import { displayValue, fieldValue } from "./values";
 
 /** Renders a user-supplied value, marking blanks so gaps are visible. */
 function value(text: string, placeholder: string): Inline {
@@ -31,11 +35,11 @@ function value(text: string, placeholder: string): Inline {
 }
 
 /**
- * Turns multi-line textarea input into one paragraph per line.
+ * Turns multi-line input into one paragraph per line.
  *
  * A single block would lose the line breaks entirely: HTML collapses whitespace
  * and @react-pdf/renderer ignores newlines inside a Text node, so a numbered
- * list of modifications would render as one run-on sentence in both outputs.
+ * list of obligations would render as one run-on sentence in both outputs.
  */
 function freeTextBlocks(text: string, placeholder: string): Block[] {
   const lines = splitParagraphs(text);
@@ -48,102 +52,156 @@ function freeTextBlocks(text: string, placeholder: string): Block[] {
   }));
 }
 
-/**
- * The MNDA's preamble, quoted from the cover page template so the app does not
- * silently paraphrase the agreement's own description of itself.
- */
-function preamble(): Block {
-  const standardsLink = /\[([^\]]+)\]\((https:\/\/commonpaper\.com[^)]+)\)/.exec(
-    coverPageMarkdown,
+/** The standards URL the agreement points at, if it names one. */
+function standardsLink(document: DocumentDefinition): Inline | null {
+  const source = `${document.coverPage ?? ""}\n${document.standardTerms}`;
+  const markdown = /\[([^\]]+)\]\((https:\/\/commonpaper\.com\/standards[^)]+)\)/.exec(
+    source,
   );
-  return {
+  if (markdown) return { kind: "link", text: markdown[1], href: markdown[2] };
+
+  const bare = /<(https:\/\/commonpaper\.com\/standards[^>]+)>/.exec(source);
+  if (bare) {
+    return { kind: "link", text: bare[1].replace(/^https:\/\//, ""), href: bare[1] };
+  }
+  return null;
+}
+
+/**
+ * The paragraph explaining what the document is made of.
+ *
+ * Every Common Paper agreement says this about itself in more or less the same
+ * words; saying it here keeps a generated cover page honest about the fact that
+ * the standard terms below are incorporated unmodified.
+ */
+function preamble(document: DocumentDefinition): Block {
+  const link = standardsLink(document);
+  const content: Inline[] = [
+    {
+      kind: "text",
+      text:
+        `This ${document.name} consists of: (1) this Cover Page and ` +
+        `(2) the Common Paper ${document.name} Standard Terms`,
+    },
+  ];
+
+  if (link) {
+    content.push({ kind: "text", text: " identical to those posted at " }, link);
+  }
+
+  content.push({
+    kind: "text",
+    text:
+      ". Any modifications of the Standard Terms should be made on the Cover " +
+      "Page, which will control over conflicts with the Standard Terms.",
+  });
+
+  return { kind: "paragraph", content };
+}
+
+/** An option with `{n}` filled in, or with a blank where the number goes. */
+function renderOption(option: string, count: string | null): string {
+  return option.replace(/\{n\}/g, count ?? "___");
+}
+
+/**
+ * Works out which of an either/or term's options an answer selects.
+ *
+ * `{n}` marks a number the user supplies, so "Expires {n} year(s) from
+ * Effective Date." is selected by that exact phrase. The assistant is told to
+ * copy one of the phrases verbatim, but it is a language model and will
+ * sometimes answer "2 years" to "how long should the NDA run?" -- so a bare
+ * number is also accepted, since it can only mean the option that takes one.
+ *
+ * Anything else returns null and the answer is rendered as the user gave it:
+ * losing what someone actually said would be worse than an unticked box.
+ */
+function selectedOption(
+  options: string[],
+  answer: string,
+): { index: number; text: string } | null {
+  if (answer.length === 0) return null;
+
+  const asPattern = (option: string) =>
+    new RegExp(
+      `^${option
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\\\{n\\\}/g, "(.+?)")}$`,
+      "i",
+    );
+
+  const exact = options.findIndex((option) => asPattern(option).test(answer));
+  if (exact !== -1) return { index: exact, text: answer };
+
+  const number = /^(\d+)\b/.exec(answer);
+  const parametrized = options.findIndex((option) => option.includes("{n}"));
+  if (number && parametrized !== -1) {
+    return {
+      index: parametrized,
+      text: renderOption(options[parametrized], number[1]),
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Builds the checkbox list for an either/or term, ticking the chosen one.
+ */
+function optionBlocks(field: DocumentField, raw: string): Block[] {
+  const options = field.options ?? [];
+  const answer = raw.trim();
+  const selected = selectedOption(options, answer);
+
+  if (answer.length > 0 && selected === null) {
+    return [{ kind: "paragraph", content: [value(answer, "")] }];
+  }
+
+  return options.map((option, index) => ({
+    kind: "option",
+    checked: index === selected?.index,
+    content:
+      index === selected?.index
+        ? [{ kind: "value", text: selected.text, filled: true }]
+        : [{ kind: "text", text: renderOption(option, null) }],
+  }));
+}
+
+/** One field's heading, caption and answer. */
+function fieldBlocks(field: DocumentField, values: DocumentValues): Block[] {
+  const blocks: Block[] = [{ kind: "heading", text: field.label }];
+  if (field.caption) blocks.push({ kind: "label", text: field.caption });
+
+  const raw = values.fields[field.key] ?? "";
+
+  if (field.options) {
+    blocks.push(...optionBlocks(field, raw));
+    return blocks;
+  }
+
+  if (field.type === "multiline") {
+    blocks.push(...freeTextBlocks(raw, `[${field.label}]`));
+    return blocks;
+  }
+
+  blocks.push({
     kind: "paragraph",
-    content: [
-      {
-        kind: "text",
-        text:
-          "This Mutual Non-Disclosure Agreement (the “MNDA”) consists of: " +
-          "(1) this Cover Page and (2) the Common Paper Mutual NDA Standard Terms " +
-          "Version 1.0 (“Standard Terms”) identical to those posted at ",
-      },
-      standardsLink
-        ? { kind: "link", text: standardsLink[1], href: standardsLink[2] }
-        : { kind: "text", text: "commonpaper.com/standards/mutual-nda/1.0" },
-      {
-        kind: "text",
-        text:
-          ". Any modifications of the Standard Terms should be made on the Cover " +
-          "Page, which will control over conflicts with the Standard Terms.",
-      },
-    ],
-  };
+    content: [value(displayValue(field, raw), `[${field.label}]`)],
+  });
+  return blocks;
 }
 
-function termBlocks(values: NdaFormValues): Block[] {
-  const years = formatYears(values.mndaTermYears);
-  return [
-    { kind: "heading", text: "MNDA Term" },
-    { kind: "label", text: "The length of this MNDA" },
-    {
-      kind: "option",
-      checked: values.mndaTerm === "fixed",
-      content: [
-        { kind: "text", text: "Expires " },
-        value(years, "___"),
-        { kind: "text", text: " from the Effective Date." },
-      ],
-    },
-    {
-      kind: "option",
-      checked: values.mndaTerm === "untilTerminated",
-      content: [
-        {
-          kind: "text",
-          text: "Continues until terminated in accordance with the terms of the MNDA.",
-        },
-      ],
-    },
-  ];
-}
-
-function confidentialityBlocks(values: NdaFormValues): Block[] {
-  const years = formatYears(values.confidentialityYears);
-  return [
-    { kind: "heading", text: "Term of Confidentiality" },
-    { kind: "label", text: "How long Confidential Information is protected" },
-    {
-      kind: "option",
-      checked: values.confidentiality === "fixed",
-      content: [
-        value(years, "___"),
-        {
-          kind: "text",
-          text:
-            " from the Effective Date, but in the case of trade secrets until " +
-            "Confidential Information is no longer considered a trade secret " +
-            "under applicable laws.",
-        },
-      ],
-    },
-    {
-      kind: "option",
-      checked: values.confidentiality === "perpetual",
-      content: [{ kind: "text", text: "In perpetuity." }],
-    },
-  ];
-}
-
-function signatureBlock(values: NdaFormValues): Block {
-  const { partyOne, partyTwo } = values;
+function signatureBlock(
+  document: DocumentDefinition,
+  values: DocumentValues,
+): Block {
+  const [one, two] = values.parties;
   const rows: SignatureRow[] = [
     { label: "Signature", values: ["", ""] },
-    { label: "Print Name", values: [partyOne.printName, partyTwo.printName] },
-    { label: "Title", values: [partyOne.title, partyTwo.title] },
-    { label: "Company", values: [partyOne.company, partyTwo.company] },
-    {
-      label: "Notice Address",
-      values: [partyOne.noticeAddress, partyTwo.noticeAddress],
-    },
+    { label: "Print Name", values: [one.printName, two.printName] },
+    { label: "Title", values: [one.title, two.title] },
+    { label: "Company", values: [one.company, two.company] },
+    { label: "Notice Address", values: [one.noticeAddress, two.noticeAddress] },
     { label: "Date", values: ["", ""] },
   ];
 
@@ -154,61 +212,49 @@ function signatureBlock(values: NdaFormValues): Block {
     kind: "signatures",
     rows,
     parties: [
-      name(partyOne.company, "Party 1"),
-      name(partyTwo.company, "Party 2"),
+      name(one.company, document.parties[0]),
+      name(two.company, document.parties[1]),
     ],
   };
 }
 
+/**
+ * Whether a field is worth putting on the cover page.
+ *
+ * Required fields always appear, blank or not, because their gap is the point.
+ * Optional ones appear only once answered -- an empty "Increased Cap Amount"
+ * heading on a signed agreement invites confusion about whether it was
+ * negotiated and left out, or never discussed.
+ */
+function shouldRender(field: DocumentField, values: DocumentValues): boolean {
+  return field.required || fieldValue(values, field.key).length > 0;
+}
+
 /** Builds the filled cover page. */
-export function buildCoverPage(values: NdaFormValues): Block[] {
+export function buildCoverPage(
+  document: DocumentDefinition,
+  values: DocumentValues,
+): Block[] {
   const blocks: Block[] = [
-    { kind: "title", text: "Mutual Non-Disclosure Agreement" },
-    preamble(),
-
-    { kind: "heading", text: "Purpose" },
-    { kind: "label", text: "How Confidential Information may be used" },
-    ...freeTextBlocks(values.purpose, "[Describe the purpose]"),
-
-    { kind: "heading", text: "Effective Date" },
-    {
-      kind: "paragraph",
-      content: [
-        value(formatEffectiveDate(values.effectiveDate), "[Effective date]"),
-      ],
-    },
-
-    ...termBlocks(values),
-    ...confidentialityBlocks(values),
-
-    { kind: "heading", text: "Governing Law & Jurisdiction" },
-    {
-      kind: "paragraph",
-      content: [
-        { kind: "strong", text: "Governing Law: " },
-        value(values.governingLaw, "[State]"),
-      ],
-    },
-    {
-      kind: "paragraph",
-      content: [
-        { kind: "strong", text: "Jurisdiction: " },
-        value(values.jurisdiction, "[City or county and state]"),
-      ],
-    },
+    { kind: "title", text: document.name },
+    preamble(document),
   ];
 
-  // Only shown when the user actually entered modifications; an empty
-  // "Modifications" heading on a signed agreement invites confusion.
-  const modifications = values.modifications.trim();
-  if (modifications.length > 0) {
-    blocks.push(
-      { kind: "heading", text: "MNDA Modifications" },
-      ...splitParagraphs(modifications).map<Block>((line) => ({
-        kind: "paragraph",
-        content: [{ kind: "text", text: line }],
-      })),
+  for (const group of document.groups) {
+    const fields = document.fields.filter(
+      (field) => field.group === group && shouldRender(field, values),
     );
+    if (fields.length === 0) continue;
+
+    // The heading is only worth showing when an agreement genuinely splits its
+    // terms across more than one fill-in document, which most do not.
+    if (document.groups.length > 1) {
+      blocks.push({ kind: "heading", text: groupLabel(group) });
+    }
+
+    for (const field of fields) {
+      blocks.push(...fieldBlocks(field, values));
+    }
   }
 
   blocks.push({
@@ -217,20 +263,26 @@ export function buildCoverPage(values: NdaFormValues): Block[] {
       {
         kind: "text",
         text:
-          "By signing this Cover Page, each party agrees to enter into this MNDA " +
-          "as of the Effective Date.",
+          `By signing this Cover Page, each party agrees to enter into this ` +
+          `${document.name} as of the Effective Date.`,
       },
     ],
   });
 
-  blocks.push(signatureBlock(values));
+  blocks.push(signatureBlock(document, values));
 
   return blocks;
 }
 
 /** Cover page + verbatim standard terms. */
-export function assembleDocument(values: NdaFormValues): NdaDocument {
+export function assembleAgreement(
+  document: DocumentDefinition,
+  values: DocumentValues,
+): Agreement {
   return {
-    blocks: [...buildCoverPage(values), ...parseStandardTerms(standardTerms)],
+    blocks: [
+      ...buildCoverPage(document, values),
+      ...parseStandardTerms(document.standardTerms),
+    ],
   };
 }

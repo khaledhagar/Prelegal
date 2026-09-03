@@ -1,0 +1,358 @@
+{
+  "_comment": "Curated, hand-written guidance for how the assistant asks for each templated value. Field NAMES come from templates/ (see frontend/scripts/build-documents.mjs); this file supplies the human half. Everything is optional - a field with no hint falls back to its label.",
+  "shared": {
+    "effectiveDate": {
+      "ask": "What date should the agreement start?",
+      "type": "date",
+      "required": true
+    },
+    "governingLaw": {
+      "ask": "Which state's law should govern the agreement?",
+      "caption": "The law that applies, e.g. Delaware",
+      "required": true
+    },
+    "chosenCourts": {
+      "ask": "Where should any disputes be heard?",
+      "caption": "Where disputes are settled",
+      "required": true
+    },
+    "noticeAddress": {
+      "ask": "Where should formal legal notices be sent?",
+      "caption": "An email or postal address"
+    },
+    "agreement": {
+      "ask": "Which agreement does this one attach to?",
+      "caption": "The agreement these terms supplement",
+      "required": true
+    },
+    "dpa": {
+      "ask": "Is there a data processing agreement that goes with this?",
+      "caption": "Optional -- leave as none if there isn't one"
+    },
+    "generalCapAmount": {
+      "ask": "What should the general cap on liability be?",
+      "caption": "The usual limit on what either side can owe",
+      "type": "money",
+      "required": true
+    },
+    "increasedCapAmount": {
+      "ask": "Should some claims have a higher cap than the rest? If so, how much?",
+      "caption": "A higher limit for the claims listed below",
+      "type": "money"
+    },
+    "increasedClaims": {
+      "ask": "Which kinds of claim should get that higher cap?",
+      "type": "multiline"
+    },
+    "unlimitedClaims": {
+      "ask": "Are there any claims that shouldn't be capped at all?",
+      "type": "multiline"
+    },
+    "additionalWarranties": {
+      "ask": "Any promises either side wants to make beyond the standard ones?",
+      "type": "multiline"
+    },
+    "customerCoveredClaim": {
+      "ask": "Which claims should the customer cover the provider for?",
+      "type": "multiline"
+    },
+    "providerCoveredClaim": {
+      "ask": "Which claims should the provider cover the customer for?",
+      "type": "multiline"
+    },
+    "companyCoveredClaim": {
+      "ask": "Which claims should the company cover the partner for?",
+      "type": "multiline"
+    },
+    "partnerCoveredClaim": {
+      "ask": "Which claims should the partner cover the company for?",
+      "type": "multiline"
+    },
+    "fees": {
+      "ask": "What are the fees, and how are they worked out?",
+      "type": "money"
+    },
+    "paymentProcess": {
+      "ask": "How and when does payment happen?",
+      "caption": "e.g. invoiced monthly, net 30"
+    },
+    "paymentPeriod": {
+      "ask": "How long does the customer have to pay an invoice?",
+      "type": "duration"
+    },
+    "paymentSchedule": {
+      "ask": "When do payments fall due?"
+    },
+    "subscriptionPeriod": {
+      "ask": "How long does each subscription period run?",
+      "type": "duration",
+      "required": true
+    },
+    "orderDate": {
+      "ask": "What date is the order placed?",
+      "type": "date"
+    },
+    "nonRenewalNoticeDate": {
+      "ask": "How much notice is needed to stop it renewing?",
+      "type": "duration"
+    },
+    "securityPolicy": {
+      "ask": "Is there a security policy the provider has to follow?"
+    }
+  },
+  "documents": {
+    "mutual-nda": {
+      "purpose": {
+        "ask": "What are the two companies sharing information about?",
+        "caption": "How Confidential Information may be used",
+        "type": "multiline",
+        "required": true
+      },
+      "jurisdiction": {
+        "ask": "Where should any disputes be heard?",
+        "caption": "e.g. \"courts located in New Castle, DE\"",
+        "required": true
+      },
+      "mndaTerm": {
+        "ask": "Should the NDA run for a set number of years, or until someone ends it?",
+        "caption": "The length of this MNDA",
+        "options": [
+          "Expires {n} year(s) from Effective Date.",
+          "Continues until terminated in accordance with the terms of the MNDA."
+        ],
+        "required": true
+      },
+      "termOfConfidentiality": {
+        "ask": "How long should the information stay confidential?",
+        "caption": "How long Confidential Information is protected",
+        "options": [
+          "{n} year(s) from Effective Date, but in the case of trade secrets until Confidential Information is no longer considered a trade secret under applicable laws.",
+          "In perpetuity."
+        ],
+        "required": true
+      },
+      "mndaModifications": {
+        "ask": "Any changes to the standard terms? Most agreements have none.",
+        "caption": "List any modifications to the MNDA",
+        "type": "multiline"
+      }
+    },
+    "ai-addendum": {
+      "trainingData": {
+        "ask": "Which of the customer's data, if any, may be used to train models?",
+        "type": "multiline"
+      },
+      "trainingPurposes": {
+        "ask": "What may that data be used to train models for?",
+        "type": "multiline"
+      },
+      "trainingRestrictions": {
+        "ask": "Any limits on how that training may be done?",
+        "type": "multiline"
+      },
+      "improvementRestrictions": {
+        "ask": "Any limits on using the customer's data to improve the service?",
+        "type": "multiline"
+      }
+    },
+    "business-associate-agreement": {
+      "baaEffectiveDate": {
+        "ask": "What date should this BAA start?",
+        "type": "date",
+        "required": true
+      },
+      "breachNotificationPeriod": {
+        "ask": "How quickly must a breach be reported?",
+        "type": "duration",
+        "required": true
+      },
+      "limitations": {
+        "ask": "Any limits on how the provider may use protected health information?",
+        "type": "multiline"
+      }
+    },
+    "cloud-service-agreement": {
+      "technicalSupport": {
+        "ask": "What technical support is included?"
+      },
+      "useLimitations": {
+        "ask": "Any limits on how much the customer may use the service?",
+        "caption": "e.g. seats, API calls, storage",
+        "type": "multiline"
+      }
+    },
+    "data-processing-agreement": {
+      "categoriesOfPersonalData": {
+        "ask": "What kinds of personal data will be processed?",
+        "type": "multiline",
+        "required": true
+      },
+      "categoriesOfDataSubjects": {
+        "ask": "Whose personal data is it?",
+        "caption": "e.g. the customer's employees and end users",
+        "type": "multiline",
+        "required": true
+      },
+      "natureAndPurposeOfProcessing": {
+        "ask": "What will the provider do with that data, and why?",
+        "type": "multiline",
+        "required": true
+      },
+      "durationOfProcessing": {
+        "ask": "How long will the data be processed for?",
+        "type": "duration",
+        "required": true
+      },
+      "frequencyOfTransfer": {
+        "ask": "How often is data transferred -- continuously, or now and then?"
+      },
+      "specialCategoryData": {
+        "ask": "Does any of it count as special category data, like health or biometric data?",
+        "type": "multiline"
+      },
+      "specialCategoryDataRestrictionsOrSafeguards": {
+        "ask": "What extra safeguards apply to that special category data?",
+        "type": "multiline"
+      },
+      "approvedSubprocessors": {
+        "ask": "Which subprocessors is the provider allowed to use?",
+        "type": "multiline"
+      },
+      "governingMemberState": {
+        "ask": "Which EU member state's law applies?"
+      },
+      "providerSecurityContact": {
+        "ask": "Who should be contacted about security issues?"
+      }
+    },
+    "design-partner-agreement": {
+      "program": {
+        "ask": "What does the design partner programme involve?",
+        "type": "multiline",
+        "required": true
+      },
+      "term": {
+        "ask": "How long should the partnership run?",
+        "type": "duration"
+      },
+      "fees": {
+        "ask": "Are there any fees, or is this unpaid?",
+        "type": "money"
+      }
+    },
+    "partnership-agreement": {
+      "obligations": {
+        "ask": "What is each side agreeing to do?",
+        "type": "multiline",
+        "required": true
+      },
+      "territory": {
+        "ask": "Which territory does the partnership cover?",
+        "required": true
+      },
+      "endDate": {
+        "ask": "When should the partnership end?",
+        "type": "date"
+      },
+      "brandGuidelines": {
+        "ask": "Are there brand guidelines for using each other's trademarks?"
+      }
+    },
+    "pilot-agreement": {
+      "pilotPeriod": {
+        "ask": "How long should the pilot run?",
+        "type": "duration",
+        "required": true
+      }
+    },
+    "professional-services-agreement": {
+      "deliverable": {
+        "ask": "What is being delivered?",
+        "type": "multiline",
+        "required": true
+      },
+      "customerObligations": {
+        "ask": "What does the customer need to do for the work to happen?",
+        "type": "multiline"
+      },
+      "customerPolicies": {
+        "ask": "Any customer policies the provider's staff have to follow?",
+        "type": "multiline"
+      },
+      "sowTerm": {
+        "ask": "How long does the statement of work run?",
+        "type": "duration"
+      },
+      "rejectionPeriod": {
+        "ask": "How long does the customer get to reject a deliverable?",
+        "type": "duration"
+      },
+      "resubmissionPeriod": {
+        "ask": "How long does the provider get to fix and resubmit it?",
+        "type": "duration"
+      },
+      "timeOfAssignment": {
+        "ask": "When does ownership of the deliverables transfer to the customer?"
+      },
+      "insuranceMinimums": {
+        "ask": "What insurance must the provider carry?",
+        "type": "multiline"
+      }
+    },
+    "service-level-agreement": {
+      "targetUptime": {
+        "ask": "What uptime are you committing to?",
+        "caption": "e.g. 99.9%",
+        "type": "percent",
+        "required": true
+      },
+      "targetResponseTime": {
+        "ask": "How quickly will support requests be acknowledged?",
+        "type": "duration",
+        "required": true
+      },
+      "supportChannel": {
+        "ask": "Where should customers send support requests?",
+        "caption": "e.g. support@example.com",
+        "required": true
+      },
+      "uptimeCredit": {
+        "ask": "What credit does the customer get if uptime is missed?",
+        "type": "multiline",
+        "required": true
+      },
+      "responseTimeCredit": {
+        "ask": "What credit does the customer get if a response is late?",
+        "type": "multiline"
+      },
+      "scheduledDowntime": {
+        "ask": "When is planned maintenance allowed, and how much notice is given?",
+        "type": "multiline"
+      }
+    },
+    "software-license-agreement": {
+      "permittedUses": {
+        "ask": "What is the customer allowed to use the software for?",
+        "type": "multiline",
+        "required": true
+      },
+      "licenseLimits": {
+        "ask": "Any limits on the licence -- seats, installations, environments?",
+        "type": "multiline"
+      },
+      "warrantyPeriod": {
+        "ask": "How long does the warranty last?",
+        "type": "duration"
+      },
+      "deletionProcedure": {
+        "ask": "What must the customer do with the software when the licence ends?",
+        "type": "multiline"
+      }
+    }
+  },
+  "limitations": {
+    "ai-addendum": "An AI Addendum attaches to an existing agreement rather than standing on its own. Name the agreement it supplements and the addendum will reference it.",
+    "professional-services-agreement": "One statement of work per agreement. A PSA can carry several in practice; drafting more than one is not supported yet.",
+    "data-processing-agreement": "The annexes are filled from your answers. The Standard Contractual Clauses the DPA incorporates are reproduced as written and cannot be configured here."
+  }
+}

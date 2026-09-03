@@ -8,36 +8,42 @@
  * keeping it out of the initial bundle makes first load noticeably cheaper.
  */
 import { useState } from "react";
-import type { NdaDocument } from "@/lib/document";
-import { type NdaFormValues, missingRequiredFields, suggestedFileName } from "@/lib/form";
+import type { Agreement } from "@/lib/document";
+import type { DocumentDefinition, DocumentValues } from "@/lib/documents/types";
+import { missingRequiredFields, suggestedFileName } from "@/lib/values";
 
 type Props = {
-  document: NdaDocument;
-  values: NdaFormValues;
+  /** The assembled document model, ready to render. */
+  agreement: Agreement;
+  /** Which agreement it is, for the file name and the PDF's title metadata. */
+  document: DocumentDefinition;
+  values: DocumentValues;
 };
 
-export function DownloadPdfButton({ document: model, values }: Props) {
+export function DownloadPdfButton({ agreement, document, values }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const missing = missingRequiredFields(values);
+  const missing = missingRequiredFields(document, values);
 
   async function handleDownload() {
     setBusy(true);
     setError(null);
     let url: string | null = null;
     try {
-      const [{ pdf }, { NdaPdfDocument }] = await Promise.all([
+      const [{ pdf }, { AgreementPdfDocument }] = await Promise.all([
         import("@react-pdf/renderer"),
-        import("@/pdf/NdaDocument"),
+        import("@/pdf/AgreementDocument"),
       ]);
 
-      const blob = await pdf(<NdaPdfDocument document={model} />).toBlob();
+      const blob = await pdf(
+        <AgreementPdfDocument document={agreement} name={document.name} />,
+      ).toBlob();
 
       url = URL.createObjectURL(blob);
       const anchor = window.document.createElement("a");
       anchor.href = url;
-      anchor.download = suggestedFileName(values);
+      anchor.download = suggestedFileName(document, values);
       window.document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

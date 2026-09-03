@@ -1,0 +1,1190 @@
+{
+  "_generated": "by frontend/scripts/build-documents.mjs -- do not edit",
+  "documents": [
+    {
+      "slug": "ai-addendum",
+      "name": "AI Addendum",
+      "description": "Addendum that layers AI-specific terms onto an existing agreement, covering use of AI services, customer data handling, model training restrictions, and allocation of responsibility for AI output.",
+      "parties": [
+        "Customer",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "improvementRestrictions",
+          "label": "Improvement Restrictions",
+          "group": "coverpage",
+          "ask": "Any limits on using the customer's data to improve the service?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "trainingData",
+          "label": "Training Data",
+          "group": "coverpage",
+          "ask": "Which of the customer's data, if any, may be used to train models?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "trainingPurposes",
+          "label": "Training Purposes",
+          "group": "coverpage",
+          "ask": "What may that data be used to train models for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "trainingRestrictions",
+          "label": "Training Restrictions",
+          "group": "coverpage",
+          "ask": "Any limits on how that training may be done?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "coverpage"
+      ],
+      "limitation": "An AI Addendum attaches to an existing agreement rather than standing on its own. Name the agreement it supplements and the addendum will reference it."
+    },
+    {
+      "slug": "business-associate-agreement",
+      "name": "Business Associate Agreement",
+      "description": "HIPAA Business Associate Agreement setting out a provider's obligations and restrictions when handling protected health information on a covered entity's behalf, including safeguards, breach notification, and subcontractor terms.",
+      "parties": [
+        "Provider",
+        "Company"
+      ],
+      "fields": [
+        {
+          "key": "agreement",
+          "label": "Agreement",
+          "group": "keyterms",
+          "ask": "Which agreement does this one attach to?",
+          "caption": "The agreement these terms supplement",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "baaEffectiveDate",
+          "label": "BAA Effective Date",
+          "group": "keyterms",
+          "ask": "What date should this BAA start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "breachNotificationPeriod",
+          "label": "Breach Notification Period",
+          "group": "keyterms",
+          "ask": "How quickly must a breach be reported?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "limitations",
+          "label": "Limitations",
+          "group": "keyterms",
+          "ask": "Any limits on how the provider may use protected health information?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "keyterms"
+      ]
+    },
+    {
+      "slug": "cloud-service-agreement",
+      "name": "Cloud Service Agreement",
+      "description": "Standard terms for a subscription cloud/SaaS product, covering access and use rights, customer data, security, payment, warranties, indemnification, and limitation of liability.",
+      "parties": [
+        "Customer",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "nonRenewalNoticeDate",
+          "label": "Non-Renewal Notice Date",
+          "group": "orderform",
+          "ask": "How much notice is needed to stop it renewing?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "orderDate",
+          "label": "Order Date",
+          "group": "orderform",
+          "ask": "What date is the order placed?",
+          "type": "date",
+          "required": false
+        },
+        {
+          "key": "paymentProcess",
+          "label": "Payment Process",
+          "group": "orderform",
+          "ask": "How and when does payment happen?",
+          "caption": "e.g. invoiced monthly, net 30",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "subscriptionPeriod",
+          "label": "Subscription Period",
+          "group": "orderform",
+          "ask": "How long does each subscription period run?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "technicalSupport",
+          "label": "Technical Support",
+          "group": "orderform",
+          "ask": "What technical support is included?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "useLimitations",
+          "label": "Use Limitations",
+          "group": "orderform",
+          "ask": "Any limits on how much the customer may use the service?",
+          "caption": "e.g. seats, API calls, storage",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "additionalWarranties",
+          "label": "Additional Warranties",
+          "group": "keyterms",
+          "ask": "Any promises either side wants to make beyond the standard ones?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "keyterms",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "customerCoveredClaim",
+          "label": "Customer Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the customer cover the provider for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "dpa",
+          "label": "DPA",
+          "group": "keyterms",
+          "ask": "Is there a data processing agreement that goes with this?",
+          "caption": "Optional -- leave as none if there isn't one",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "keyterms",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "generalCapAmount",
+          "label": "General Cap Amount",
+          "group": "keyterms",
+          "ask": "What should the general cap on liability be?",
+          "caption": "The usual limit on what either side can owe",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "keyterms",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "increasedCapAmount",
+          "label": "Increased Cap Amount",
+          "group": "keyterms",
+          "ask": "Should some claims have a higher cap than the rest? If so, how much?",
+          "caption": "A higher limit for the claims listed below",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "increasedClaims",
+          "label": "Increased Claims",
+          "group": "keyterms",
+          "ask": "Which kinds of claim should get that higher cap?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "providerCoveredClaim",
+          "label": "Provider Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the provider cover the customer for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "unlimitedClaims",
+          "label": "Unlimited Claims",
+          "group": "keyterms",
+          "ask": "Are there any claims that shouldn't be capped at all?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "orderform",
+        "keyterms"
+      ]
+    },
+    {
+      "slug": "data-processing-agreement",
+      "name": "Data Processing Agreement",
+      "description": "Data processing terms addressing controller, processor, and subprocessor relationships, international transfers, security measures, and data subject rights under privacy regimes such as GDPR.",
+      "parties": [
+        "Customer",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "agreement",
+          "label": "Agreement",
+          "group": "keyterms",
+          "ask": "Which agreement does this one attach to?",
+          "caption": "The agreement these terms supplement",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "approvedSubprocessors",
+          "label": "Approved Subprocessors",
+          "group": "keyterms",
+          "ask": "Which subprocessors is the provider allowed to use?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "categoriesOfDataSubjects",
+          "label": "Categories of Data Subjects",
+          "group": "keyterms",
+          "ask": "Whose personal data is it?",
+          "caption": "e.g. the customer's employees and end users",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "categoriesOfPersonalData",
+          "label": "Categories of Personal Data",
+          "group": "keyterms",
+          "ask": "What kinds of personal data will be processed?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "durationOfProcessing",
+          "label": "Duration of Processing",
+          "group": "keyterms",
+          "ask": "How long will the data be processed for?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "frequencyOfTransfer",
+          "label": "Frequency of Transfer",
+          "group": "keyterms",
+          "ask": "How often is data transferred -- continuously, or now and then?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "governingMemberState",
+          "label": "Governing Member State",
+          "group": "keyterms",
+          "ask": "Which EU member state's law applies?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "natureAndPurposeOfProcessing",
+          "label": "Nature and Purpose of Processing",
+          "group": "keyterms",
+          "ask": "What will the provider do with that data, and why?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "providerSecurityContact",
+          "label": "Provider Security Contact",
+          "group": "keyterms",
+          "ask": "Who should be contacted about security issues?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "securityPolicy",
+          "label": "Security Policy",
+          "group": "keyterms",
+          "ask": "Is there a security policy the provider has to follow?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "specialCategoryData",
+          "label": "Special Category Data",
+          "group": "keyterms",
+          "ask": "Does any of it count as special category data, like health or biometric data?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "specialCategoryDataRestrictionsOrSafeguards",
+          "label": "Special Category Data Restrictions or Safeguards",
+          "group": "keyterms",
+          "ask": "What extra safeguards apply to that special category data?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "keyterms"
+      ],
+      "limitation": "The annexes are filled from your answers. The Standard Contractual Clauses the DPA incorporates are reproduced as written and cannot be configured here."
+    },
+    {
+      "slug": "design-partner-agreement",
+      "name": "Design Partner Agreement",
+      "description": "Agreement for early-stage collaboration in which a design partner receives pre-release product access in exchange for structured feedback, covering IP in that feedback and confidentiality.",
+      "parties": [
+        "Partner",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "keyterms",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "keyterms",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "fees",
+          "label": "Fees",
+          "group": "keyterms",
+          "ask": "Are there any fees, or is this unpaid?",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "keyterms",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "noticeAddress",
+          "label": "Notice Address",
+          "group": "keyterms",
+          "ask": "Where should formal legal notices be sent?",
+          "caption": "An email or postal address",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "program",
+          "label": "Program",
+          "group": "keyterms",
+          "ask": "What does the design partner programme involve?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "term",
+          "label": "Term",
+          "group": "keyterms",
+          "ask": "How long should the partnership run?",
+          "type": "duration",
+          "required": false
+        }
+      ],
+      "groups": [
+        "keyterms"
+      ]
+    },
+    {
+      "slug": "mutual-nda",
+      "name": "Mutual Non-Disclosure Agreement",
+      "description": "Standard terms of a two-way confidentiality agreement, defining confidential information, permitted use and disclosure, exceptions, term, and return or destruction obligations. Pairs with the MNDA cover page.",
+      "parties": [
+        "Party 1",
+        "Party 2"
+      ],
+      "fields": [
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "coverpage",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "coverpage",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "jurisdiction",
+          "label": "Jurisdiction",
+          "group": "coverpage",
+          "ask": "Where should any disputes be heard?",
+          "caption": "e.g. \"courts located in New Castle, DE\"",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "mndaModifications",
+          "label": "MNDA Modifications",
+          "group": "coverpage",
+          "ask": "Any changes to the standard terms? Most agreements have none.",
+          "caption": "List any modifications to the MNDA",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "mndaTerm",
+          "label": "MNDA Term",
+          "group": "coverpage",
+          "ask": "Should the NDA run for a set number of years, or until someone ends it?",
+          "caption": "The length of this MNDA",
+          "type": "text",
+          "options": [
+            "Expires {n} year(s) from Effective Date.",
+            "Continues until terminated in accordance with the terms of the MNDA."
+          ],
+          "required": true
+        },
+        {
+          "key": "purpose",
+          "label": "Purpose",
+          "group": "coverpage",
+          "ask": "What are the two companies sharing information about?",
+          "caption": "How Confidential Information may be used",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "termOfConfidentiality",
+          "label": "Term of Confidentiality",
+          "group": "coverpage",
+          "ask": "How long should the information stay confidential?",
+          "caption": "How long Confidential Information is protected",
+          "type": "text",
+          "options": [
+            "{n} year(s) from Effective Date, but in the case of trade secrets until Confidential Information is no longer considered a trade secret under applicable laws.",
+            "In perpetuity."
+          ],
+          "required": true
+        }
+      ],
+      "groups": [
+        "coverpage"
+      ]
+    },
+    {
+      "slug": "partnership-agreement",
+      "name": "Partnership Agreement",
+      "description": "Terms for a commercial partnership between two companies, covering each party's cooperation obligations, referral or resale arrangements, trademark use, revenue terms, and confidentiality.",
+      "parties": [
+        "Company",
+        "Partner"
+      ],
+      "fields": [
+        {
+          "key": "endDate",
+          "label": "End Date",
+          "group": "businessterms",
+          "ask": "When should the partnership end?",
+          "type": "date",
+          "required": false
+        },
+        {
+          "key": "obligations",
+          "label": "Obligations",
+          "group": "businessterms",
+          "ask": "What is each side agreeing to do?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "paymentProcess",
+          "label": "Payment Process",
+          "group": "businessterms",
+          "ask": "How and when does payment happen?",
+          "caption": "e.g. invoiced monthly, net 30",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "paymentSchedule",
+          "label": "Payment Schedule",
+          "group": "businessterms",
+          "ask": "When do payments fall due?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "territory",
+          "label": "Territory",
+          "group": "businessterms",
+          "ask": "Which territory does the partnership cover?",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "additionalWarranties",
+          "label": "Additional Warranties",
+          "group": "keyterms",
+          "ask": "Any promises either side wants to make beyond the standard ones?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "brandGuidelines",
+          "label": "Brand Guidelines",
+          "group": "keyterms",
+          "ask": "Are there brand guidelines for using each other's trademarks?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "keyterms",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "companyCoveredClaim",
+          "label": "Company Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the company cover the partner for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "dpa",
+          "label": "DPA",
+          "group": "keyterms",
+          "ask": "Is there a data processing agreement that goes with this?",
+          "caption": "Optional -- leave as none if there isn't one",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "keyterms",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "generalCapAmount",
+          "label": "General Cap Amount",
+          "group": "keyterms",
+          "ask": "What should the general cap on liability be?",
+          "caption": "The usual limit on what either side can owe",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "keyterms",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "increasedCapAmount",
+          "label": "Increased Cap Amount",
+          "group": "keyterms",
+          "ask": "Should some claims have a higher cap than the rest? If so, how much?",
+          "caption": "A higher limit for the claims listed below",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "increasedClaims",
+          "label": "Increased Claims",
+          "group": "keyterms",
+          "ask": "Which kinds of claim should get that higher cap?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "partnerCoveredClaim",
+          "label": "Partner Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the partner cover the company for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "unlimitedClaims",
+          "label": "Unlimited Claims",
+          "group": "keyterms",
+          "ask": "Are there any claims that shouldn't be capped at all?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "businessterms",
+        "keyterms"
+      ]
+    },
+    {
+      "slug": "pilot-agreement",
+      "name": "Pilot Agreement",
+      "description": "Terms for a time-limited paid or unpaid pilot, covering access during the pilot period, success criteria, conversion to a full subscription, and what happens to data when the pilot ends.",
+      "parties": [
+        "Customer",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "orderform",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "orderform",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "generalCapAmount",
+          "label": "General Cap Amount",
+          "group": "orderform",
+          "ask": "What should the general cap on liability be?",
+          "caption": "The usual limit on what either side can owe",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "orderform",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "noticeAddress",
+          "label": "Notice Address",
+          "group": "orderform",
+          "ask": "Where should formal legal notices be sent?",
+          "caption": "An email or postal address",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "pilotPeriod",
+          "label": "Pilot Period",
+          "group": "orderform",
+          "ask": "How long should the pilot run?",
+          "type": "duration",
+          "required": true
+        }
+      ],
+      "groups": [
+        "orderform"
+      ]
+    },
+    {
+      "slug": "professional-services-agreement",
+      "name": "Professional Services Agreement",
+      "description": "Master terms for delivering professional services under statements of work, covering service delivery, customer responsibilities, acceptance, fees and expenses, IP in deliverables, and termination.",
+      "parties": [
+        "Customer",
+        "Provider"
+      ],
+      "fields": [
+        {
+          "key": "customerObligations",
+          "label": "Customer Obligations",
+          "group": "sow",
+          "ask": "What does the customer need to do for the work to happen?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "deliverable",
+          "label": "Deliverable",
+          "group": "sow",
+          "ask": "What is being delivered?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "fees",
+          "label": "Fees",
+          "group": "sow",
+          "ask": "What are the fees, and how are they worked out?",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "paymentPeriod",
+          "label": "Payment Period",
+          "group": "sow",
+          "ask": "How long does the customer have to pay an invoice?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "rejectionPeriod",
+          "label": "Rejection Period",
+          "group": "sow",
+          "ask": "How long does the customer get to reject a deliverable?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "resubmissionPeriod",
+          "label": "Resubmission Period",
+          "group": "sow",
+          "ask": "How long does the provider get to fix and resubmit it?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "timeOfAssignment",
+          "label": "Time of Assignment",
+          "group": "sow",
+          "ask": "When does ownership of the deliverables transfer to the customer?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "additionalWarranties",
+          "label": "Additional Warranties",
+          "group": "keyterms",
+          "ask": "Any promises either side wants to make beyond the standard ones?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "keyterms",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "customerCoveredClaim",
+          "label": "Customer Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the customer cover the provider for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "customerPolicies",
+          "label": "Customer Policies",
+          "group": "keyterms",
+          "ask": "Any customer policies the provider's staff have to follow?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "dpa",
+          "label": "DPA",
+          "group": "keyterms",
+          "ask": "Is there a data processing agreement that goes with this?",
+          "caption": "Optional -- leave as none if there isn't one",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "keyterms",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "generalCapAmount",
+          "label": "General Cap Amount",
+          "group": "keyterms",
+          "ask": "What should the general cap on liability be?",
+          "caption": "The usual limit on what either side can owe",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "keyterms",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "increasedCapAmount",
+          "label": "Increased Cap Amount",
+          "group": "keyterms",
+          "ask": "Should some claims have a higher cap than the rest? If so, how much?",
+          "caption": "A higher limit for the claims listed below",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "increasedClaims",
+          "label": "Increased Claims",
+          "group": "keyterms",
+          "ask": "Which kinds of claim should get that higher cap?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "insuranceMinimums",
+          "label": "Insurance Minimums",
+          "group": "keyterms",
+          "ask": "What insurance must the provider carry?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "providerCoveredClaim",
+          "label": "Provider Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the provider cover the customer for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "securityPolicy",
+          "label": "Security Policy",
+          "group": "keyterms",
+          "ask": "Is there a security policy the provider has to follow?",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "sowTerm",
+          "label": "SOW Term",
+          "group": "keyterms",
+          "ask": "How long does the statement of work run?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "unlimitedClaims",
+          "label": "Unlimited Claims",
+          "group": "keyterms",
+          "ask": "Are there any claims that shouldn't be capped at all?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "sow",
+        "keyterms"
+      ],
+      "limitation": "One statement of work per agreement. A PSA can carry several in practice; drafting more than one is not supported yet."
+    },
+    {
+      "slug": "service-level-agreement",
+      "name": "Service Level Agreement",
+      "description": "Service level commitments for a hosted product, covering target uptime, how downtime is measured and excluded, support response times, and service credits as the remedy for missed targets.",
+      "parties": [
+        "Provider",
+        "Customer"
+      ],
+      "fields": [
+        {
+          "key": "responseTimeCredit",
+          "label": "Response Time Credit",
+          "group": "orderform",
+          "ask": "What credit does the customer get if a response is late?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "scheduledDowntime",
+          "label": "Scheduled Downtime",
+          "group": "orderform",
+          "ask": "When is planned maintenance allowed, and how much notice is given?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "subscriptionPeriod",
+          "label": "Subscription Period",
+          "group": "orderform",
+          "ask": "How long does each subscription period run?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "supportChannel",
+          "label": "Support Channel",
+          "group": "orderform",
+          "ask": "Where should customers send support requests?",
+          "caption": "e.g. support@example.com",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "targetResponseTime",
+          "label": "Target Response Time",
+          "group": "orderform",
+          "ask": "How quickly will support requests be acknowledged?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "targetUptime",
+          "label": "Target Uptime",
+          "group": "orderform",
+          "ask": "What uptime are you committing to?",
+          "caption": "e.g. 99.9%",
+          "type": "percent",
+          "required": true
+        },
+        {
+          "key": "uptimeCredit",
+          "label": "Uptime Credit",
+          "group": "orderform",
+          "ask": "What credit does the customer get if uptime is missed?",
+          "type": "multiline",
+          "required": true
+        }
+      ],
+      "groups": [
+        "orderform"
+      ]
+    },
+    {
+      "slug": "software-license-agreement",
+      "name": "Software License Agreement",
+      "description": "Terms for licensing software delivered to the customer rather than hosted, covering the license grant and restrictions, deployment scope, maintenance and support, audit rights, and IP ownership.",
+      "parties": [
+        "Provider",
+        "Customer"
+      ],
+      "fields": [
+        {
+          "key": "deletionProcedure",
+          "label": "Deletion Procedure",
+          "group": "orderform",
+          "ask": "What must the customer do with the software when the licence ends?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "licenseLimits",
+          "label": "License Limits",
+          "group": "orderform",
+          "ask": "Any limits on the licence -- seats, installations, environments?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "nonRenewalNoticeDate",
+          "label": "Non-Renewal Notice Date",
+          "group": "orderform",
+          "ask": "How much notice is needed to stop it renewing?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "orderDate",
+          "label": "Order Date",
+          "group": "orderform",
+          "ask": "What date is the order placed?",
+          "type": "date",
+          "required": false
+        },
+        {
+          "key": "paymentProcess",
+          "label": "Payment Process",
+          "group": "orderform",
+          "ask": "How and when does payment happen?",
+          "caption": "e.g. invoiced monthly, net 30",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "permittedUses",
+          "label": "Permitted Uses",
+          "group": "orderform",
+          "ask": "What is the customer allowed to use the software for?",
+          "type": "multiline",
+          "required": true
+        },
+        {
+          "key": "subscriptionPeriod",
+          "label": "Subscription Period",
+          "group": "orderform",
+          "ask": "How long does each subscription period run?",
+          "type": "duration",
+          "required": true
+        },
+        {
+          "key": "warrantyPeriod",
+          "label": "Warranty Period",
+          "group": "orderform",
+          "ask": "How long does the warranty last?",
+          "type": "duration",
+          "required": false
+        },
+        {
+          "key": "additionalWarranties",
+          "label": "Additional Warranties",
+          "group": "keyterms",
+          "ask": "Any promises either side wants to make beyond the standard ones?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "chosenCourts",
+          "label": "Chosen Courts",
+          "group": "keyterms",
+          "ask": "Where should any disputes be heard?",
+          "caption": "Where disputes are settled",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "customerCoveredClaim",
+          "label": "Customer Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the customer cover the provider for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "effectiveDate",
+          "label": "Effective Date",
+          "group": "keyterms",
+          "ask": "What date should the agreement start?",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "generalCapAmount",
+          "label": "General Cap Amount",
+          "group": "keyterms",
+          "ask": "What should the general cap on liability be?",
+          "caption": "The usual limit on what either side can owe",
+          "type": "money",
+          "required": true
+        },
+        {
+          "key": "governingLaw",
+          "label": "Governing Law",
+          "group": "keyterms",
+          "ask": "Which state's law should govern the agreement?",
+          "caption": "The law that applies, e.g. Delaware",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "increasedCapAmount",
+          "label": "Increased Cap Amount",
+          "group": "keyterms",
+          "ask": "Should some claims have a higher cap than the rest? If so, how much?",
+          "caption": "A higher limit for the claims listed below",
+          "type": "money",
+          "required": false
+        },
+        {
+          "key": "increasedClaims",
+          "label": "Increased Claims",
+          "group": "keyterms",
+          "ask": "Which kinds of claim should get that higher cap?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "providerCoveredClaim",
+          "label": "Provider Covered Claim",
+          "group": "keyterms",
+          "ask": "Which claims should the provider cover the customer for?",
+          "type": "multiline",
+          "required": false
+        },
+        {
+          "key": "unlimitedClaims",
+          "label": "Unlimited Claims",
+          "group": "keyterms",
+          "ask": "Are there any claims that shouldn't be capped at all?",
+          "type": "multiline",
+          "required": false
+        }
+      ],
+      "groups": [
+        "orderform",
+        "keyterms"
+      ]
+    }
+  ],
+  "groupLabels": {
+    "coverpage": "Cover Page",
+    "keyterms": "Key Terms",
+    "orderform": "Order Form",
+    "businessterms": "Business Terms",
+    "sow": "Statement of Work"
+  }
+}
